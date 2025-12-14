@@ -46,45 +46,6 @@
   let img = new Image();
   let imgLoaded = false;
 
-  let mode;
-  const setLengthMode = () => {
-    mode = "length";
-    document.getElementById("length").style.color = "red";
-    document.getElementById("radius").style.color = "black";
-    document.getElementById("angle").style.color = "black";
-    showUnitInstruction();
-  }
-  const setRadiusMode = () => {
-    mode = "radius";
-    document.getElementById("length").style.color = "black";
-    document.getElementById("radius").style.color = "red";
-    document.getElementById("angle").style.color = "black";
-    showUnitInstruction();
-  }
-  const setAngleMode = () => {
-    mode = "angle";
-    document.getElementById("length").style.color = "black";
-    document.getElementById("radius").style.color = "black";
-    document.getElementById("angle").style.color = "red";
-    hideUnitInstruction();
-  }
-  const showUnitInstruction = () => {
-    if (!referencePoint2Selected) {
-      document.getElementById("instruction").innerText = DRAW_REF_LINE_INST;
-    }
-  }
-  const hideUnitInstruction = () => {
-    document.getElementById("instruction").innerText = "";
-  }
-  const recalculate = () => {
-    if (mode === "length" && linePoint2Selected) {
-      calculateLength();
-    }
-    if (mode === "radius" && circlePoint3Selected) {
-      calculateCircleCenterAndRadius();
-    }
-  }
-
   let mousePostion = { x: 0, y: 0 };
 
   // Image state
@@ -118,9 +79,50 @@
   let anglePoint3Selected = false;
   let anglePoints = {x1: 0, y1: 0, x2: 0, y2: 0, x3: 0, y3: 0};
 
-
-  // Points state
-  // let points = [];
+  let mode;
+  const setLengthMode = () => {
+    mode = "length";
+    document.getElementById("length").style.color = "red";
+    document.getElementById("radius").style.color = "black";
+    document.getElementById("angle").style.color = "black";
+    showUnitInstruction();
+    resetRadius();
+    resetAngle()
+  }
+  const setRadiusMode = () => {
+    mode = "radius";
+    document.getElementById("length").style.color = "black";
+    document.getElementById("radius").style.color = "red";
+    document.getElementById("angle").style.color = "black";
+    showUnitInstruction();
+    resetLength();
+    resetAngle();
+  }
+  const setAngleMode = () => {
+    mode = "angle";
+    document.getElementById("length").style.color = "black";
+    document.getElementById("radius").style.color = "black";
+    document.getElementById("angle").style.color = "red";
+    hideUnitInstruction();
+    resetLength();
+    resetRadius();
+  }
+  const showUnitInstruction = () => {
+    if (!referencePoint2Selected) {
+      document.getElementById("instruction").innerText = DRAW_REF_LINE_INST;
+    }
+  }
+  const hideUnitInstruction = () => {
+    document.getElementById("instruction").innerText = "";
+  }
+  const recalculate = () => {
+    if (mode === "length" && linePoint2Selected) {
+      calculateLength();
+    }
+    if (mode === "radius" && circlePoint3Selected) {
+      calculateCircleCenterAndRadius();
+    }
+  }
 
   // Handle image upload
   document.getElementById('imgUpload').addEventListener('change', e => {
@@ -212,7 +214,6 @@
     document.getElementById("result-label").innerHTML = "Radius";
     document.getElementById("result-value").innerText = document.getElementById("unit").value * circleRadius / unitLength;
   }
-
 
   const calculateAngle = () => {
     let slopeAngle01 = slopeAngle(anglePoints.x1,anglePoints.y1,anglePoints.x2,anglePoints.y2);
@@ -477,24 +478,32 @@
     document.getElementById("instruction").innerText = DRAW_REF_LINE_INST;
     draw();
   };
-
   function reset() {
     referencePoint1Selected = false;
     referencePoint2Selected = false;
-    linePoint1Selected = false;
-    linePoint2Selected = false;
-    circlePoint1Selected = false;
-    circlePoint2Selected = false;
-    circlePoint3Selected = false;
-    anglePoint1Selected = false;
-    anglePoint2Selected = false;
-    anglePoint3Selected = false;
+    resetLength();
+    resetRadius();
+    resetAngle();
     document.getElementById("unit").style.display = 'none';
     document.getElementById("reset-button").style.display = 'none';
     document.getElementById("result-value").innerText = '';
     document.getElementById("result-container").style.display = 'none';
   };
-  let sq = (n) => {return Math.pow(n,2)}
+  function resetLength() {
+    linePoint1Selected = false;
+    linePoint2Selected = false;
+  };
+  function resetRadius() {
+    circlePoint1Selected = false;
+    circlePoint2Selected = false;
+    circlePoint3Selected = false;
+  };
+  function resetAngle() {
+    anglePoint1Selected = false;
+    anglePoint2Selected = false;
+    anglePoint3Selected = false;
+  };
+  const sq = (n) => {return Math.pow(n,2)};
   const distance = (x1, y1, x2, y2) => {
     return Math.sqrt(sq(x1-x2) + sq(y1-y2));
   };
