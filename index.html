@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>SCALE</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 20px;
+    }
+
+    canvas {
+      border: 1px solid #333;
+      cursor: crosshair;
+    }
+
+    input {
+      margin: 10px;
+    }
+  </style>
+</head>
+
+<body>
+<input type="file" id="imgUpload" accept="image/*">
+<div id="modeButton-container" style="display: none">
+  <button class="modeButton" id="length" onclick="setLengthMode()">Length</button>
+  <button class="modeButton" id="radius" onclick="setRadiusMode()">Radius</button>
+  <button class="modeButton" id="angle" onclick="setAngleMode()">Angle</button>
+</div>
+<p id="instruction"></p>
+<input type="number" id="unit" placeholder="length of the reference line" style="display: none;"
+       onchange="recalculate()"
+>
+<button id="reset-button" onclick="redrawReferenceLine()" style="display: none">Redraw Reference Line</button>
+<p id="result-container" style="display: none;"><span id="result-label"></span>: <span id="result-value"></span></p>
+<canvas id="canvas" width="800" height="600"></canvas>
+
+<script>
+  const DRAW_REF_LINE_INST= "Draw Reference Line";
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  let img = new Image();
+  let imgLoaded = false;
+
+  let mode;
+  const setLengthMode = () => {
+    mode = "length";
+    document.getElementById("length").style.color = "red";
+    document.getElementById("radius").style.color = "black";
+    document.getElementById("angle").style.color = "black";
+    showUnitInstruction();
+  }
+  const setRadiusMode = () => {
+    mode = "radius";
+    document.getElementById("length").style.color = "black";
+    document.getElementById("radius").style.color = "red";
+    document.getElementById("angle").style.color = "black";
+    showUnitInstruction();
+  }
+  const setAngleMode = () => {
+    mode = "angle";
+    document.getElementById("length").style.color = "black";
+    document.getElementById("radius").style.color = "black";
+    document.getElementById("angle").style.color = "red";
+    hideUnitInstruction();
+  }
+  const showUnitInstruction = () => {
+    if (unit)
+    document.getElementById("instruction").innerText = DRAW_REF_LINE_INST;
+  }
+  const hideUnitInstruction = () => {
+    document.getElementById("instruction").innerText = "";
+  }
+  const recalculate = () => {
+    if (mode === "length" && linePoint2Selected) {
+      calculateLength();
+    }
+    if (mode === "radius" && circlePoint3Selected) {
+      calculateCircleCenterAndRadius();
+    }
+  }
+
+  let mousePostion = { x: 0, y: 0 };
+
+  // Image state
+  let imgX = 0, imgY = 0;
+  let scale = 1;
+  let dragging = false;
+  let dragStart = { x: 0, y: 0 };
+
+  // For unit
+  let referencePoint1Selected = false;
+  let referencePoint2Selected = false;
+  let referencePoints = {x1: 0, y1: 0, x2: 0, y2: 0};
+  let unitLength = 0;
+
+  // For line
+  let linePoint1Selected = false;
+  let linePoint2Selected = false;
+  let linePoints = {x1: 0, y1: 0, x2: 0, y2: 0};
+
+  // For curvature
+  let circlePoint1Selected = false;
+  let circlePoint2Selected = false;
+  let circlePoint3Selected = false;
+  let circlePoints = {x1: 0, y1: 0, x2: 0, y2: 0, x3: 0, y3: 0};
+  let circleCenterPoint = {x: 0, y: 0};
+  let circleRadius = 0;
+
+  // For angle
+  let anglePoint1Selected = false;
+  let anglePoint2Selected = false;
+  let anglePoint3Selected = false;
+  let anglePoints = {x1: 0, y1: 0, x2: 0, y2: 0, x3: 0, y3: 0};
+
+
+  // Points state
+  // let points = [];
+
+  // Handle image upload
+  document.getElementById('imgUpload').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (file) {
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        imgLoaded = true;
+        document.getElementById("modeButton-container").style.display = "block";
+        reset();
+
+        imgX = canvas.width / 2 - img.width / 2;
+        imgY = canvas.height / 2 - img.height / 2;
+        draw();
+      };
+    }
+  });
+
+  // Zoom
+  canvas.addEventListener('wheel', e => {
+    if (!imgLoaded) return;
+    const zoom = e.deltaY < 0 ? 1.1 : 0.9;
+    // Zoom relative to mouse
+    const mx = e.offsetX;
+    const my = e.offsetY;
+    imgX = mx - (mx - imgX) * zoom;
+    imgY = my - (my - imgY) * zoom;
+    scale *= zoom;
+    draw();
+  });
+
+  // Drag image
+  canvas.addEventListener('mousedown', e => {
+    if (e.button === 2) {
+      dragging = true;
+      dragStart.x = e.offsetX - imgX;
+      dragStart.y = e.offsetY - imgY;
+    } else {
+      dragging = false;
+    }
+  });
+  canvas.addEventListener('mousemove', e => {
+    if (dragging && imgLoaded) {
+      imgX = e.offsetX - dragStart.x;
+      imgY = e.offsetY - dragStart.y;
+    }
+    mousePostion.x = e.offsetX;
+    mousePostion.y = e.offsetY;
+    draw();
+  });
+  canvas.addEventListener('mouseup', e => dragging = false);
+  canvas.addEventListener('mouseleave', e => dragging = false);
+
+  canvas.addEventListener('contextmenu', e => {
+    e.preventDefault(); // prevent the browser context menu
+  });
+
+  const calculateLength = () => {
+    const dx = (linePoints.x1 - linePoints.x2);
+    const dy = (linePoints.y1 - linePoints.y2);
+
+    document.getElementById("result-container").style.display = "block";
+    document.getElementById("result-label").innerHTML = "Length";
+    document.getElementById("result-value").innerText = document.getElementById("unit").value * Math.sqrt(dx * dx + dy * dy) / unitLength;
+  }
+
+  const calculateCircleCenterAndRadius = () => {
+    let a1 = -2 * ( circlePoints.x1 - circlePoints.x2 );
+    let b1 = -2 * ( circlePoints.y1 - circlePoints.y2 );
+    let c1 = // x1^2 - x2^2 + y1^2 - y2^2
+      sq(circlePoints.x1) - sq(circlePoints.x2)
+      +
+      sq(circlePoints.y1) - sq(circlePoints.y2);
+
+    let a2 = -2 * ( circlePoints.x2 - circlePoints.x3 );
+    let b2 = -2 * ( circlePoints.y2 - circlePoints.y3 );
+    let c2 = // x2^2 - x3^2 + y2^2 - y3^2
+      sq(circlePoints.x2) - sq(circlePoints.x3)
+      +
+      sq(circlePoints.y2) - sq(circlePoints.y3);
+
+    circleCenterPoint.x = (b1*c2 - b2*c1) / (a1*b2 - a2*b1);
+    circleCenterPoint.y = (c1*a2 - c2*a1) / (a1*b2 - a2*b1);
+
+    // Radius
+    circleRadius = Math.sqrt(sq(circleCenterPoint.x - circlePoints.x1) + sq(circleCenterPoint.y - circlePoints.y1));
+
+    document.getElementById("result-container").style.display = "block";
+    document.getElementById("result-label").innerHTML = "Radius";
+    document.getElementById("result-value").innerText = document.getElementById("unit").value * circleRadius / unitLength;
+  }
+
+
+  const calculateAngle = () => {
+    let slopeAngle01 = slopeAngle(anglePoints.x1,anglePoints.y1,anglePoints.x2,anglePoints.y2);
+    let slopeAngle12 = slopeAngle(anglePoints.x2,anglePoints.y2, anglePoints.x3,anglePoints.y3);
+
+    angle = Math.abs(slopeAngle12 - slopeAngle01);
+
+    angle = angle * 180 / 3.14159;
+
+    if ( // c^2 < a^2 + b^2 [acute angle] (pythagoras)
+
+      sq( distance(anglePoints.x1, anglePoints.y1, anglePoints.x3, anglePoints.y3) )
+      <
+      sq( distance(anglePoints.x1, anglePoints.y1, anglePoints.x2, anglePoints.y2) )
+      +
+      sq( distance(anglePoints.x2, anglePoints.y2, anglePoints.x3, anglePoints.y3) )
+    )
+    { // Then it is an Acute angle
+
+      if (angle > 90)
+        angle = 180 - angle; // Less than 90 degree
+    }
+    else
+    { // Else it is an Obtuse angle
+
+      if (angle < 90)
+        angle = 180 - angle; // More than 90 degree
+    }
+
+    document.getElementById("result-container").style.display = "block";
+    document.getElementById("result-label").innerHTML = "Angle";
+    document.getElementById("result-value").innerText = angle;
+  }
+
+  // Add points
+  canvas.addEventListener('click', e => {
+    if (!imgLoaded) return;
+    // Ignore if dragging
+    if (dragging) return;
+
+    if (e.button === 0) {
+      if (mode === "length" || mode === "radius") {
+        if (!referencePoint1Selected) {
+          referencePoints.x1 = (e.offsetX - imgX) / scale;
+          referencePoints.y1 = (e.offsetY - imgY) / scale;
+          referencePoint1Selected = true;
+        } else if (!referencePoint2Selected) {
+          referencePoints.x2 = (e.offsetX - imgX) / scale;
+          referencePoints.y2 = (e.offsetY - imgY) / scale;
+
+          const dux = referencePoints.x1 - referencePoints.x2;
+          const duy = referencePoints.y1 - referencePoints.y2;
+          unitLength =  Math.sqrt(sq(dux) + sq(duy));
+
+          referencePoint2Selected = true;
+          document.getElementById("unit").style.display = 'block';
+          document.getElementById("reset-button").style.display = 'block';
+          document.getElementById("instruction").innerText = "Specify length of the reference line";
+        } else {
+          if (mode === "length") {
+            if (!linePoint1Selected) {
+              linePoints.x1 = (e.offsetX - imgX) / scale;
+              linePoints.y1 = (e.offsetY - imgY) / scale;
+              linePoint1Selected = true;
+              linePoint2Selected = false;
+            } else if (!linePoint2Selected) {
+              linePoints.x2 = (e.offsetX - imgX) / scale;
+              linePoints.y2 = (e.offsetY - imgY) / scale;
+              linePoint2Selected = true;
+              linePoint1Selected = false;
+              calculateLength();
+            }
+          }
+          if (mode === "radius") {
+            if (!circlePoint1Selected) {
+              circlePoints.x1 = (e.offsetX - imgX) / scale;
+              circlePoints.y1 = (e.offsetY - imgY) / scale;
+              circlePoint1Selected = true;
+              circlePoint2Selected = false;
+              circlePoint3Selected = false;
+            } else if (!circlePoint2Selected) {
+              circlePoints.x2 = (e.offsetX - imgX) / scale;
+              circlePoints.y2 = (e.offsetY - imgY) / scale;
+              circlePoint2Selected = true;
+            } else if (!circlePoint3Selected) {
+              circlePoints.x3 = (e.offsetX - imgX) / scale;
+              circlePoints.y3 = (e.offsetY - imgY) / scale;
+              circlePoint3Selected = true;
+              calculateCircleCenterAndRadius();
+              circlePoint1Selected = false
+            }
+          }
+        }
+      }
+      if (mode === "angle") {
+        if (!anglePoint1Selected) {
+          anglePoints.x1 = (e.offsetX - imgX) / scale;
+          anglePoints.y1 = (e.offsetY - imgY) / scale;
+          anglePoint1Selected = true;
+          anglePoint2Selected = false;
+          anglePoint3Selected = false;
+        } else if (!anglePoint2Selected) {
+          anglePoints.x2 = (e.offsetX - imgX) / scale;
+          anglePoints.y2 = (e.offsetY - imgY) / scale;
+          anglePoint2Selected = true;
+        } else if (!anglePoint3Selected) {
+          anglePoints.x3 = (e.offsetX - imgX) / scale;
+          anglePoints.y3 = (e.offsetY - imgY) / scale;
+          anglePoint3Selected = true;
+          calculateAngle();
+          anglePoint1Selected = false;
+        }
+      }
+      draw();
+    }
+  });
+
+  // Draw everything
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!imgLoaded) return;
+    ctx.drawImage(img, imgX, imgY, img.width * scale, img.height * scale);
+
+    if (referencePoint1Selected) {
+      ctx.fillStyle = '#0f0';
+      ctx.beginPath();
+      ctx.arc(imgX + referencePoints.x1 * scale, imgY + referencePoints.y1 * scale, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (!referencePoint2Selected) {
+        ctx.strokeStyle= '#ff0';
+        ctx.beginPath();
+        ctx.moveTo(imgX + referencePoints.x1 * scale, imgY + referencePoints.y1 * scale);
+        ctx.lineTo(mousePostion.x, mousePostion.y);
+        ctx.stroke();
+      }
+    }
+    if (referencePoint2Selected) {
+      ctx.fillStyle = '#0f0';
+      ctx.beginPath();
+      ctx.arc(imgX + referencePoints.x2 * scale, imgY + referencePoints.y2 * scale, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#ff0';
+      ctx.beginPath();
+      ctx.moveTo(imgX + referencePoints.x1 * scale, imgY + referencePoints.y1 * scale);
+      ctx.lineTo(imgX + referencePoints.x2 * scale, imgY + referencePoints.y2 * scale);
+      ctx.stroke();
+    }
+
+    if (mode === "length") {
+      if (linePoint1Selected || linePoint2Selected) {
+        ctx.fillStyle = 'red';
+        ctx.beginPath();
+        ctx.arc(imgX + linePoints.x1 * scale, imgY + linePoints.y1 * scale, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (!linePoint2Selected) {
+          ctx.strokeStyle= '#ff0';
+          ctx.beginPath();
+          ctx.moveTo(imgX + linePoints.x1 * scale, imgY + linePoints.y1 * scale);
+          ctx.lineTo(mousePostion.x, mousePostion.y);
+          ctx.stroke();
+        }
+      }
+
+      if (linePoint2Selected) {
+        ctx.fillStyle = 'red';
+        ctx.beginPath();
+        ctx.arc(imgX + linePoints.x2 * scale, imgY + linePoints.y2 * scale, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#ff0';
+        ctx.beginPath();
+        ctx.moveTo(imgX + linePoints.x1 * scale, imgY + linePoints.y1 * scale);
+        ctx.lineTo(imgX + linePoints.x2 * scale, imgY + linePoints.y2 * scale);
+        ctx.stroke();
+      }
+    }
+    if (mode === "radius") {
+      ctx.fillStyle = 'red';
+      if (circlePoint1Selected || circlePoint3Selected) {
+        ctx.beginPath();
+        ctx.arc(imgX + circlePoints.x1 * scale, imgY + circlePoints.y1 * scale, 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (circlePoint2Selected) {
+        ctx.beginPath();
+        ctx.arc(imgX + circlePoints.x2 * scale, imgY + circlePoints.y2 * scale, 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (circlePoint3Selected) {
+        ctx.beginPath();
+        ctx.arc(imgX + circlePoints.x3 * scale, imgY + circlePoints.y3 * scale, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        //
+        ctx.fillStyle = "#ff0";
+        ctx.beginPath();
+        ctx.arc(imgX + circleCenterPoint.x * scale, imgY + circleCenterPoint.y * scale, circleRadius * scale, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    if (mode === "angle") {
+      if (anglePoint1Selected || anglePoint3Selected) {
+        ctx.fillStyle = 'red';
+        ctx.beginPath();
+        ctx.arc(imgX + anglePoints.x1 * scale, imgY + anglePoints.y1 * scale, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (!anglePoint2Selected) {
+          ctx.strokeStyle= '#ff0';
+          ctx.beginPath();
+          ctx.moveTo(imgX + anglePoints.x1 * scale, imgY + anglePoints.y1 * scale);
+          ctx.lineTo(mousePostion.x, mousePostion.y);
+          ctx.stroke();
+        }
+      }
+
+      if (anglePoint2Selected) {
+        ctx.fillStyle = 'red';
+        ctx.beginPath();
+        ctx.arc(imgX + anglePoints.x2 * scale, imgY + anglePoints.y2 * scale, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#ff0';
+        ctx.beginPath();
+        ctx.moveTo(imgX + anglePoints.x1 * scale, imgY + anglePoints.y1 * scale);
+        ctx.lineTo(imgX + anglePoints.x2 * scale, imgY + anglePoints.y2 * scale);
+        ctx.stroke();
+
+        if (!anglePoint3Selected) {
+          ctx.beginPath();
+          ctx.moveTo(imgX + anglePoints.x2 * scale, imgY + anglePoints.y2 * scale);
+          ctx.lineTo(mousePostion.x, mousePostion.y);
+          ctx.stroke();
+        }
+      }
+
+      if (anglePoint3Selected) {
+        ctx.fillStyle = 'red';
+        ctx.beginPath();
+        ctx.arc(imgX + anglePoints.x3 * scale, imgY + anglePoints.y3 * scale, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#ff0';
+        ctx.beginPath();
+        ctx.moveTo(imgX + anglePoints.x1 * scale, imgY + anglePoints.y1 * scale);
+        ctx.lineTo(imgX + anglePoints.x2 * scale, imgY + anglePoints.y2 * scale);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(imgX + anglePoints.x2 * scale, imgY + anglePoints.y2 * scale);
+        ctx.lineTo(imgX + anglePoints.x3 * scale, imgY + anglePoints.y3 * scale);
+        ctx.stroke();
+      }
+    }
+  }
+
+  function redrawReferenceLine() {
+    reset();
+    document.getElementById("instruction").innerText = DRAW_REF_LINE_INST;
+    draw();
+  };
+
+  function reset() {
+    referencePoint1Selected = false;
+    referencePoint2Selected = false;
+    linePoint1Selected = false;
+    linePoint2Selected = false;
+    circlePoint1Selected = false;
+    circlePoint2Selected = false;
+    circlePoint3Selected = false;
+    anglePoint1Selected = false;
+    anglePoint2Selected = false;
+    anglePoint3Selected = false;
+    document.getElementById("unit").style.display = 'none';
+    document.getElementById("reset-button").style.display = 'none';
+    document.getElementById("result-value").innerText = '';
+    document.getElementById("result-container").style.display = 'none';
+  };
+  let sq = (n) => {return Math.pow(n,2)}
+  const distance = (x1, y1, x2, y2) => {
+    return Math.sqrt(sq(x1-x2) + sq(y1-y2));
+  };
+  const slopeAngle = (x1, y1, x2, y2) => {
+    if (x1 - x2 === 0)
+      return Math.PI/2;
+    else
+      return Math.atan( (y1-y2) / (x1-x2) );
+  };
+</script>
+
+</body>
+
+</html>
