@@ -41,7 +41,7 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
-      align-items: flex-start; /* right aligned */
+      align-items: flex-end; /* right aligned */
     }
 
     canvas {
@@ -67,11 +67,12 @@
       color: #222;
     }
 
-    input[type="number"] {
+    input[type="number"],input[type="file"] {
       width: auto;
     }
 
     button {
+      width: 145px;
       cursor: pointer;
     }
 
@@ -114,6 +115,7 @@
     #touchMode-container {
       display: flex;
       justify-content: center;
+      gap: 6px;
     }
   </style>
 </head>
@@ -135,13 +137,13 @@
 
     <div class="header-right">
       <p id="instruction"></p>
-      <input type="number" id="unit" placeholder="length of the reference line" style="display: none" onclick="unitValueUpdate()">
-      <button id="reset-button" style="display: none" onclick="redrawReferenceLine()">Redraw Reference Line</button>
+      <input type="number" id="unit" style="display: none" onclick="unitValueUpdate()">
+      <button id="reset-button" style="display: none" onclick="reset()">Reset</button>
     </div>
   </div>
   <div id="touchMode-container">
-    <button id="zoom" class="touch-mode" style="color:red;" onclick="setTouchModeZoom()">Zoom/Move</button>
-    <button id="point" class="touch-mode" onclick="setTouchModePoint()">Add Point</button>
+    <button id="move" class="touch-mode" style="color:red;" onclick="setTouchModeMove()">Move</button>
+    <button id="draw" class="touch-mode" onclick="setTouchModeDraw()">Draw</button>
   </div>
 
   <canvas id="canvas" width="960" height="1300" style="touch-action: none;"></canvas>
@@ -158,15 +160,20 @@
   const resultValueElement = document.getElementById('result-value');
   const resultLabelElement = document.getElementById('result-label');
   const resultContainerElement = document.getElementById('result-container');
+  const instructionElement = document.getElementById('instruction');
 
-  let touchMode = "zoom";
+  const DRAW_REF_LINE_INST = "Draw Reference Line";
+  const REF_INPUT_LABEL = "Reference Line Length:";
+
+  let mode; // length | radius | angle
+  let touchMode = "move"; // move | draw
   let unitValueAvailable = false;
-  const DRAW_REF_LINE_INST= "Draw Reference Line";
+  let mousePosition = { x: 0, y: 0 };
+  let needsRedraw = false;
+
   const ctx = canvas.getContext('2d');
   let img = new Image();
   let imgLoaded = false;
-
-  let mousePosition = { x: 0, y: 0 };
 
   // Image state
   let imgX = 0, imgY = 0;
@@ -177,7 +184,7 @@
   let referencePoint1Selected = false;
   let referencePoint2Selected = false;
   let referencePoints = {x1: 0, y1: 0, x2: 0, y2: 0};
-  let unitLength = 0;
+  let referenceLineLength = 0;
 
   // For line
   let linePoint1Selected = false;
@@ -198,7 +205,6 @@
   let anglePoint3Selected = false;
   let anglePoints = {x1: 0, y1: 0, x2: 0, y2: 0, x3: 0, y3: 0};
 
-  let mode;
   const setLengthMode = () => {
     mode = "length";
     document.getElementById("length").style.color = "red";
@@ -224,7 +230,7 @@
     document.getElementById("length").style.color = "black";
     document.getElementById("radius").style.color = "black";
     document.getElementById("angle").style.color = "red";
-    hideUnitInstruction();
+    instructionElement.innerText = referencePoint2Selected ? REF_INPUT_LABEL : "";
     resetLength();
     resetRadius();
     if (referencePoint1Selected && !referencePoint2Selected) {
@@ -234,11 +240,8 @@
   }
   const showUnitInstruction = () => {
     if (!referencePoint2Selected) {
-      document.getElementById("instruction").innerText = DRAW_REF_LINE_INST;
+      instructionElement.innerText = DRAW_REF_LINE_INST;
     }
-  }
-  const hideUnitInstruction = () => {
-    document.getElementById("instruction").innerText = "";
   }
   const recalculate = () => {
     if (mode === "length" && linePoint2Selected) {
@@ -252,24 +255,24 @@
   function unitValueUpdate() {
     const unitValue = unitInputElement.value;
     if (isNaN(unitValue) || unitValue === "" || unitValue <= 0) {
-      document.getElementById("instruction").innerText = "A positive number";
+      instructionElement.innerText = "Type a +ve number";
       unitValueAvailable = false;
     } else {
-      document.getElementById("instruction").innerText = "";
+      instructionElement.innerText = REF_INPUT_LABEL;
       unitValueAvailable = true;
       recalculate();
     }
   }
 
-  function setTouchModeZoom() {
-    touchMode = "zoom";
-    document.getElementById("zoom").style.color = "red";
-    document.getElementById("point").style.color = "black";
+  function setTouchModeMove() {
+    touchMode = "move";
+    document.getElementById("move").style.color = "red";
+    document.getElementById("draw").style.color = "black";
   }
-  function setTouchModePoint() {
-    touchMode = "point";
-    document.getElementById("zoom").style.color = "black";
-    document.getElementById("point").style.color = "red";
+  function setTouchModeDraw() {
+    touchMode = "draw";
+    document.getElementById("move").style.color = "black";
+    document.getElementById("draw").style.color = "red";
   }
 
   // Handle image upload
@@ -280,7 +283,6 @@
       img.onload = () => {
         imgLoaded = true;
         document.getElementById("modeButton-container").style.display = "flex";
-        unitInputElement.value = "";
         reset();
 
         imgX = canvas.width / 2 - img.width / 2;
@@ -291,7 +293,6 @@
   });
 
   // ===== TOUCH SUPPORT =====
-  let ongoingTouches = [];
   let lastTouchDistance = 0;
   let touchDrag = false;
 
@@ -316,13 +317,12 @@
       touchDrag = false;
     }
   });
-
   canvas.addEventListener('touchmove', e => {
     e.preventDefault();
     if (!imgLoaded) return;
 
     if (e.touches.length === 1) {
-      if (touchDrag && touchMode === "zoom") {
+      if (touchDrag && touchMode === "move") {
         imgX = e.touches[0].clientX - dragStart.x;
         imgY = e.touches[0].clientY - dragStart.y;
       }
@@ -330,7 +330,7 @@
       mousePosition.x = e.touches[0].clientX - rect.left;
       mousePosition.y = e.touches[0].clientY - rect.top;
       scheduleDraw();
-    } else if (e.touches.length === 2 && touchMode === "zoom") {
+    } else if (e.touches.length === 2 && touchMode === "move") {
       const newDist = getDistance(e.touches[0], e.touches[1]);
       const zoom = newDist / lastTouchDistance;
       lastTouchDistance = newDist;
@@ -347,11 +347,10 @@
       scheduleDraw();
     }
   });
-
   canvas.addEventListener('touchend', e => {
     e.preventDefault();
     touchDrag = false;
-    if (touchMode === "point") {
+    if (touchMode === "draw") {
       const touch = e.changedTouches[0];
       const ix = (touch.clientX - canvas.getBoundingClientRect().left - imgX) / scale;
       const iy = (touch.clientY - canvas.getBoundingClientRect().top - imgY) / scale;
@@ -367,12 +366,14 @@
 
           const dux = referencePoints.x1 - referencePoints.x2;
           const duy = referencePoints.y1 - referencePoints.y2;
-          unitLength =  Math.sqrt(sq(dux) + sq(duy));
+          referenceLineLength =  Math.sqrt(sq(dux) + sq(duy));
 
           referencePoint2Selected = true;
           unitInputElement.style.display = 'block';
+          unitInputElement.value = 1;
+          unitValueAvailable = true;
           resetButtonElement.style.display = 'block';
-          document.getElementById("instruction").innerText = "Reference line length:";
+          instructionElement.innerText = REF_INPUT_LABEL;
         } else {
           if (mode === "length" && unitValueAvailable) {
             if (!linePoint1Selected) {
@@ -431,14 +432,12 @@
       scheduleDraw();
     }
   });
-
   // Optional: prevent page scrolling on touch
   document.body.addEventListener('touchmove', function(e) {
     if (e.target === canvas) {
       e.preventDefault();
     }
   }, {passive:false});
-
 
   canvas.addEventListener('contextmenu', e => {
     e.preventDefault(); // prevent the browser context menu
@@ -448,7 +447,7 @@
     const dx = (linePoints.x1 - linePoints.x2);
     const dy = (linePoints.y1 - linePoints.y2);
 
-    const length = unitInputElement.value * Math.sqrt(dx * dx + dy * dy) / unitLength;
+    const length = unitInputElement.value * Math.sqrt(dx * dx + dy * dy) / referenceLineLength;
 
     resultContainerElement.style.display = "block";
     resultLabelElement.innerHTML = "Length";
@@ -475,7 +474,7 @@
 
     // Radius
     circleRadius = Math.sqrt(sq(circleCenterPoint.x - circlePoints.x1) + sq(circleCenterPoint.y - circlePoints.y1));
-    const circleRadiusToDisplay = unitInputElement.value * circleRadius / unitLength;
+    const circleRadiusToDisplay = unitInputElement.value * circleRadius / referenceLineLength;
 
     resultContainerElement.style.display = "block";
     resultLabelElement.innerHTML = "Radius";
@@ -515,23 +514,19 @@
     resultValueElement.innerText = angle.toFixed(4) + "°";
   }
 
-
-let needsRedraw = false;
-
-function scheduleDraw() {
-  needsRedraw = true;
-}
-
-// Main draw loop
-function drawLoop() {
-  if (needsRedraw) {
-    draw();
-    needsRedraw = false;
+  function scheduleDraw() {
+    needsRedraw = true;
   }
-  requestAnimationFrame(drawLoop);
-}
-drawLoop();
 
+  // Main draw loop
+  function drawLoop() {
+    if (needsRedraw) {
+      draw();
+      needsRedraw = false;
+    }
+    requestAnimationFrame(drawLoop);
+  }
+  drawLoop();
 
   // Draw everything
   function draw() {
@@ -675,11 +670,6 @@ drawLoop();
     }
   }
 
-  function redrawReferenceLine() {
-    reset();
-    document.getElementById("instruction").innerText = DRAW_REF_LINE_INST;
-    scheduleDraw();
-  };
   function reset() {
     referencePoint1Selected = false;
     referencePoint2Selected = false;
@@ -691,6 +681,8 @@ drawLoop();
     resetButtonElement.style.display = 'none';
     resultValueElement.innerText = '';
     resultContainerElement.style.display = 'none';
+    instructionElement.innerText = (mode === "length" || mode === "radius") ? DRAW_REF_LINE_INST : "";
+    scheduleDraw();
   };
   function resetLength() {
     linePoint1Selected = false;
