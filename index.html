@@ -27,6 +27,7 @@
       justify-content: space-between; /* left stays left, right stays right */
       align-items: flex-start;
       margin-bottom: 10px;
+      height: 180px;
     }
 
     .header-left {
@@ -279,6 +280,7 @@
       img.onload = () => {
         imgLoaded = true;
         document.getElementById("modeButton-container").style.display = "flex";
+        unitInputElement.value = "";
         reset();
 
         imgX = canvas.width / 2 - img.width / 2;
@@ -684,6 +686,7 @@ drawLoop();
     resetLength();
     resetRadius();
     resetAngle();
+    unitInputElement.value = '';
     unitInputElement.style.display = 'none';
     resetButtonElement.style.display = 'none';
     resultValueElement.innerText = '';
