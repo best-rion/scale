@@ -251,7 +251,7 @@
   function unitValueUpdate() {
     const unitValue = unitInputElement.value;
     if (unitValue <= 0 || isNaN(unitValue) || unitValue !== "") {
-      document.getElementById("instruction").innerText = "Provide a positive number";
+      document.getElementById("instruction").innerText = "A positive number";
     } else {
       document.getElementById("instruction").innerText = "";
       unitValueAvailable = true;
