@@ -22,6 +22,7 @@
 
     .header {
       width: 800px;
+      height: 100px;
       display: flex;
       gap: 24px;
       margin-bottom: 10px;
@@ -57,7 +58,7 @@
     }
 
     input[type="number"] {
-      width: 100%;
+      width: auto;
     }
 
     button {
@@ -83,7 +84,7 @@
 
     #instruction {
       margin: 0;
-      font-size: 14px;
+      font-size: 24px;
       color: #555;
       min-height: 18px; /* prevents layout jump */
     }
@@ -134,8 +135,7 @@
       <p id="instruction"></p>
       <input type="number" id="unit"
              placeholder="length of the reference line"
-             style="display: none"
-             onchange="recalculate()">
+             style="display: none">
       <button id="reset-button"
               onclick="redrawReferenceLine()"
               style="display: none">
@@ -148,6 +148,8 @@
 <canvas id="canvas" width="800" height="600"></canvas>
 
 <script>
+  document.getElementById("unit").value = null;
+  let unitValueAvailable = false;
   const DRAW_REF_LINE_INST= "Draw Reference Line";
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
@@ -195,7 +197,8 @@
     document.getElementById("angle").style.color = "black";
     showUnitInstruction();
     resetRadius();
-    resetAngle()
+    resetAngle();
+    draw();
   }
   const setRadiusMode = () => {
     mode = "radius";
@@ -205,6 +208,7 @@
     showUnitInstruction();
     resetLength();
     resetAngle();
+    draw();
   }
   const setAngleMode = () => {
     mode = "angle";
@@ -214,6 +218,10 @@
     hideUnitInstruction();
     resetLength();
     resetRadius();
+    if (referencePoint1Selected && !referencePoint2Selected) {
+      referencePoint1Selected = false;
+    }
+    draw();
   }
   const showUnitInstruction = () => {
     if (!referencePoint2Selected) {
@@ -229,6 +237,20 @@
     }
     if (mode === "radius" && circlePoint3Selected) {
       calculateCircleCenterAndRadius();
+    }
+  }
+
+  function unitValueUpdate() {
+    const unitValue = document.getElementById("unit").value;
+    if (isNaN(unitValue) || unitValue === "") {
+      document.getElementById("instruction").innerText = "It is not a number";
+      unitValueAvailable = false;
+    } else if (unitValue <= 0) {
+      document.getElementById("instruction").innerText = "Provide a positive number";
+    } else {
+      document.getElementById("instruction").innerText = "";
+      unitValueAvailable = true;
+      recalculate();
     }
   }
 
@@ -356,7 +378,7 @@
 
     document.getElementById("result-container").style.display = "block";
     document.getElementById("result-label").innerHTML = "Angle";
-    document.getElementById("result-value").innerText = angle.toFixed(4);
+    document.getElementById("result-value").innerText = angle.toFixed(4) + "°";
   }
 
   // Add points
@@ -384,7 +406,7 @@
           document.getElementById("reset-button").style.display = 'block';
           document.getElementById("instruction").innerText = "Specify length of the reference line";
         } else {
-          if (mode === "length") {
+          if (mode === "length" && unitValueAvailable) {
             if (!linePoint1Selected) {
               linePoints.x1 = (e.offsetX - imgX) / scale;
               linePoints.y1 = (e.offsetY - imgY) / scale;
@@ -398,7 +420,7 @@
               calculateLength();
             }
           }
-          if (mode === "radius") {
+          if (mode === "radius" && unitValueAvailable) {
             if (!circlePoint1Selected) {
               circlePoints.x1 = (e.offsetX - imgX) / scale;
               circlePoints.y1 = (e.offsetY - imgY) / scale;
@@ -624,6 +646,9 @@
     else
       return Math.atan( (y1-y2) / (x1-x2) );
   };
+  document.getElementById("unit").addEventListener('input', () => {
+    unitValueUpdate();
+  })
 </script>
 
 </body>
