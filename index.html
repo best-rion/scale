@@ -250,10 +250,7 @@
 
   function unitValueUpdate() {
     const unitValue = unitInputElement.value;
-    if (isNaN(unitValue) || unitValue === "") {
-      document.getElementById("instruction").innerText = "It is not a number";
-      unitValueAvailable = false;
-    } else if (unitValue <= 0) {
+    if (unitValue <= 0 || isNaN(unitValue) || unitValue !== "") {
       document.getElementById("instruction").innerText = "Provide a positive number";
     } else {
       document.getElementById("instruction").innerText = "";
