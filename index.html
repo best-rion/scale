@@ -162,7 +162,7 @@
   let img = new Image();
   let imgLoaded = false;
 
-  let mousePostion = { x: 0, y: 0 };
+  let mousePosition = { x: 0, y: 0 };
 
   // Image state
   let imgX = 0, imgY = 0;
@@ -316,8 +316,8 @@
       imgX = e.offsetX - dragStart.x;
       imgY = e.offsetY - dragStart.y;
     }
-    mousePostion.x = e.offsetX;
-    mousePostion.y = e.offsetY;
+    mousePosition.x = e.offsetX;
+    mousePosition.y = e.offsetY;
     draw();
   });
   canvas.addEventListener('mouseup', e => dragging = false);
@@ -497,7 +497,7 @@
         ctx.strokeStyle= '#ff0';
         ctx.beginPath();
         ctx.moveTo(imgX + referencePoints.x1 * scale, imgY + referencePoints.y1 * scale);
-        ctx.lineTo(mousePostion.x, mousePostion.y);
+        ctx.lineTo(mousePosition.x, mousePosition.y);
         ctx.stroke();
       }
     }
@@ -525,7 +525,7 @@
           ctx.strokeStyle= '#ff0';
           ctx.beginPath();
           ctx.moveTo(imgX + linePoints.x1 * scale, imgY + linePoints.y1 * scale);
-          ctx.lineTo(mousePostion.x, mousePostion.y);
+          ctx.lineTo(mousePosition.x, mousePosition.y);
           ctx.stroke();
         }
       }
@@ -578,7 +578,7 @@
           ctx.strokeStyle= '#ff0';
           ctx.beginPath();
           ctx.moveTo(imgX + anglePoints.x1 * scale, imgY + anglePoints.y1 * scale);
-          ctx.lineTo(mousePostion.x, mousePostion.y);
+          ctx.lineTo(mousePosition.x, mousePosition.y);
           ctx.stroke();
         }
       }
@@ -598,7 +598,7 @@
         if (!anglePoint3Selected) {
           ctx.beginPath();
           ctx.moveTo(imgX + anglePoints.x2 * scale, imgY + anglePoints.y2 * scale);
-          ctx.lineTo(mousePostion.x, mousePostion.y);
+          ctx.lineTo(mousePosition.x, mousePosition.y);
           ctx.stroke();
         }
       }
