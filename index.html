@@ -145,9 +145,15 @@
   </div>
 </div>
 
-<canvas id="canvas" width="800" height="600"></canvas>
+<div id="touchMode-container">
+  <button id="zoom" class="touch-mode" onclick="setTouchModeZoom()" style="color: red;">Zoom/Move</button>
+  <button id="point" class="touch-mode" onclick="setTouchModePoint()">Add Point</button>
+</div>
+
+<canvas id="canvas" width="800" height="600" style="touch-action: none"></canvas>
 
 <script>
+  let touchMode = "zoom";
   document.getElementById("unit").value = null;
   let unitValueAvailable = false;
   const DRAW_REF_LINE_INST= "Draw Reference Line";
@@ -252,6 +258,17 @@
       unitValueAvailable = true;
       recalculate();
     }
+  }
+
+  function setTouchModeZoom() {
+    touchMode = "zoom";
+    document.getElementById("zoom").style.color = "red";
+    document.getElementById("point").style.color = "black";
+  }
+  function setTouchModePoint() {
+    touchMode = "point";
+    document.getElementById("zoom").style.color = "black";
+    document.getElementById("point").style.color = "red";
   }
 
   // Handle image upload
@@ -636,7 +653,7 @@
     anglePoint2Selected = false;
     anglePoint3Selected = false;
   };
-  const sq = (n) => {return Math.pow(n,2)};
+  const sq = n => n*n;
   const distance = (x1, y1, x2, y2) => {
     return Math.sqrt(sq(x1-x2) + sq(y1-y2));
   };
