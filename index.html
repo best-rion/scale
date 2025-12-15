@@ -112,6 +112,7 @@
 
     #touchMode-container {
       display: flex;
+      justify-content: center;
     }
   </style>
 </head>
@@ -126,21 +127,20 @@
         <button class="modeButton" id="radius" onclick="setRadiusMode()">Radius</button>
         <button class="modeButton" id="angle" onclick="setAngleMode()">Angle</button>
       </div>
-
-      <div id="touchMode-container">
-        <button id="zoom" class="touch-mode" style="color:red;" onclick="setTouchModeZoom()">Zoom/Move</button>
-        <button id="point" class="touch-mode" onclick="setTouchModePoint()">Add Point</button>
-      </div>
+      <p id="result-container">
+        <span id="result-label"></span>: <span id="result-value"></span>
+      </p>
     </div>
 
     <div class="header-right">
       <p id="instruction"></p>
       <input type="number" id="unit" placeholder="length of the reference line" style="display: none" onclick="unitValueUpdate()">
       <button id="reset-button" style="display: none" onclick="redrawReferenceLine()">Redraw Reference Line</button>
-      <p id="result-container" style="display: none">
-        <span id="result-label"></span>: <span id="result-value"></span>
-      </p>
     </div>
+  </div>
+  <div id="touchMode-container">
+    <button id="zoom" class="touch-mode" style="color:red;" onclick="setTouchModeZoom()">Zoom/Move</button>
+    <button id="point" class="touch-mode" onclick="setTouchModePoint()">Add Point</button>
   </div>
 
   <canvas id="canvas" width="960" height="1300" style="touch-action: none;"></canvas>
