@@ -7,6 +7,10 @@
   <style>
     /* Base */
 
+    html, body {
+      overscroll-behavior: none;
+    }
+
     body {
       margin: 0;
       padding: 20px;
@@ -153,7 +157,8 @@
 <canvas id="canvas" width="800" height="600" style="touch-action: none"></canvas>
 
 <script>
-  let touchMode = "zoom";
+
+let touchMode = "zoom";
   document.getElementById("unit").value = null;
   let unitValueAvailable = false;
   const DRAW_REF_LINE_INST= "Draw Reference Line";
@@ -167,7 +172,6 @@
   // Image state
   let imgX = 0, imgY = 0;
   let scale = 1;
-  let dragging = false;
   let dragStart = { x: 0, y: 0 };
 
   // For unit
@@ -204,7 +208,7 @@
     showUnitInstruction();
     resetRadius();
     resetAngle();
-    draw();
+    scheduleDraw();
   }
   const setRadiusMode = () => {
     mode = "radius";
@@ -214,7 +218,7 @@
     showUnitInstruction();
     resetLength();
     resetAngle();
-    draw();
+    scheduleDraw();
   }
   const setAngleMode = () => {
     mode = "angle";
@@ -227,7 +231,7 @@
     if (referencePoint1Selected && !referencePoint2Selected) {
       referencePoint1Selected = false;
     }
-    draw();
+    scheduleDraw();
   }
   const showUnitInstruction = () => {
     if (!referencePoint2Selected) {
@@ -283,58 +287,15 @@
 
         imgX = canvas.width / 2 - img.width / 2;
         imgY = canvas.height / 2 - img.height / 2;
-        draw();
+        scheduleDraw();
       };
     }
   });
-
-  // Zoom
-  canvas.addEventListener('wheel', e => {
-    if (!imgLoaded) return;
-    const zoom = e.deltaY < 0 ? 1.1 : 0.9;
-    // Zoom relative to mouse
-    const mx = e.offsetX;
-    const my = e.offsetY;
-    imgX = mx - (mx - imgX) * zoom;
-    imgY = my - (my - imgY) * zoom;
-    scale *= zoom;
-    draw();
-  });
-
-  // Drag image
-  canvas.addEventListener('mousedown', e => {
-    if (e.button === 2) {
-      dragging = true;
-      dragStart.x = e.offsetX - imgX;
-      dragStart.y = e.offsetY - imgY;
-    } else {
-      dragging = false;
-    }
-  });
-  canvas.addEventListener('mousemove', e => {
-    if (dragging && imgLoaded) {
-      imgX = e.offsetX - dragStart.x;
-      imgY = e.offsetY - dragStart.y;
-    }
-    mousePosition.x = e.offsetX;
-    mousePosition.y = e.offsetY;
-    draw();
-  });
-  canvas.addEventListener('mouseup', e => dragging = false);
-  canvas.addEventListener('mouseleave', e => dragging = false);
 
   // ===== TOUCH SUPPORT =====
   let ongoingTouches = [];
   let lastTouchDistance = 0;
   let touchDrag = false;
-
-  function getTouchPos(touch) {
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: (touch.clientX - rect.left - imgX) / scale,
-      y: (touch.clientY - rect.top - imgY) / scale
-    };
-  }
 
   function getDistance(touch1, touch2) {
     const dx = touch2.clientX - touch1.clientX;
@@ -362,29 +323,115 @@
     e.preventDefault();
     if (!imgLoaded) return;
 
-    if (e.touches.length === 1 && touchDrag && touchMode === "zoom") {
-      imgX = e.touches[0].clientX - dragStart.x;
-      imgY = e.touches[0].clientY - dragStart.y;
-      draw();
+    if (e.touches.length === 1) {
+      if (touchDrag && touchMode === "zoom") {
+        imgX = e.touches[0].clientX - dragStart.x;
+        imgY = e.touches[0].clientY - dragStart.y;
+      }
+      const rect = canvas.getBoundingClientRect();
+      mousePosition.x = e.touches[0].clientX - rect.left;
+      mousePosition.y = e.touches[0].clientY - rect.top;
+      scheduleDraw();
     } else if (e.touches.length === 2 && touchMode === "zoom") {
       const newDist = getDistance(e.touches[0], e.touches[1]);
       const zoom = newDist / lastTouchDistance;
       lastTouchDistance = newDist;
 
       // Midpoint for zoom center
-      const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const rect = canvas.getBoundingClientRect();
+      const mx = (e.touches[0].clientX + e.touches[1].clientX)/2 - rect.left;
+      const my = (e.touches[0].clientY + e.touches[1].clientY)/2 - rect.top;
+
 
       imgX = mx - (mx - imgX) * zoom;
       imgY = my - (my - imgY) * zoom;
       scale *= zoom;
-      draw();
+      scheduleDraw();
     }
   });
 
   canvas.addEventListener('touchend', e => {
     e.preventDefault();
     touchDrag = false;
+    if (touchMode === "point") {
+      const touch = e.changedTouches[0];
+      const ix = (touch.clientX - canvas.getBoundingClientRect().left - imgX) / scale;
+      const iy = (touch.clientY - canvas.getBoundingClientRect().top - imgY) / scale;
+
+      if (mode === "length" || mode === "radius") {
+        if (!referencePoint1Selected) {
+          referencePoints.x1 = ix;
+          referencePoints.y1 = iy;
+          referencePoint1Selected = true;
+        } else if (!referencePoint2Selected) {
+          referencePoints.x2 = ix;
+          referencePoints.y2 = iy;
+
+          const dux = referencePoints.x1 - referencePoints.x2;
+          const duy = referencePoints.y1 - referencePoints.y2;
+          unitLength =  Math.sqrt(sq(dux) + sq(duy));
+
+          referencePoint2Selected = true;
+          document.getElementById("unit").style.display = 'block';
+          document.getElementById("reset-button").style.display = 'block';
+          document.getElementById("instruction").innerText = "Specify length of the reference line";
+        } else {
+          if (mode === "length" && unitValueAvailable) {
+            if (!linePoint1Selected) {
+              linePoints.x1 = ix;
+              linePoints.y1 = iy;
+              linePoint1Selected = true;
+              linePoint2Selected = false;
+            } else if (!linePoint2Selected) {
+              linePoints.x2 = ix;
+              linePoints.y2 = iy;
+              linePoint2Selected = true;
+              linePoint1Selected = false;
+              calculateLength();
+            }
+          }
+          if (mode === "radius" && unitValueAvailable) {
+            if (!circlePoint1Selected) {
+              circlePoints.x1 = ix;
+              circlePoints.y1 = iy;
+              circlePoint1Selected = true;
+              circlePoint2Selected = false;
+              circlePoint3Selected = false;
+            } else if (!circlePoint2Selected) {
+              circlePoints.x2 = ix;
+              circlePoints.y2 = iy;
+              circlePoint2Selected = true;
+            } else if (!circlePoint3Selected) {
+              circlePoints.x3 = ix;
+              circlePoints.y3 = iy;
+              circlePoint3Selected = true;
+              calculateCircleCenterAndRadius();
+              circlePoint1Selected = false
+            }
+          }
+        }
+      }
+      if (mode === "angle") {
+        if (!anglePoint1Selected) {
+          anglePoints.x1 = ix;
+          anglePoints.y1 = iy;
+          anglePoint1Selected = true;
+          anglePoint2Selected = false;
+          anglePoint3Selected = false;
+        } else if (!anglePoint2Selected) {
+          anglePoints.x2 = ix;
+          anglePoints.y2 = iy;
+          anglePoint2Selected = true;
+        } else if (!anglePoint3Selected) {
+          anglePoints.x3 = ix;
+          anglePoints.y3 = iy;
+          anglePoint3Selected = true;
+          calculateAngle();
+          anglePoint1Selected = false;
+        }
+      }
+      scheduleDraw();
+    }
   });
 
   // Optional: prevent page scrolling on touch
@@ -470,88 +517,24 @@
     document.getElementById("result-value").innerText = angle.toFixed(4) + "°";
   }
 
-  // Add points
-  canvas.addEventListener('click', e => {
-    if (!imgLoaded) return;
-    // Ignore if dragging
-    if (dragging) return;
 
-    if (e.button === 0) {
-      if (mode === "length" || mode === "radius") {
-        if (!referencePoint1Selected) {
-          referencePoints.x1 = (e.offsetX - imgX) / scale;
-          referencePoints.y1 = (e.offsetY - imgY) / scale;
-          referencePoint1Selected = true;
-        } else if (!referencePoint2Selected) {
-          referencePoints.x2 = (e.offsetX - imgX) / scale;
-          referencePoints.y2 = (e.offsetY - imgY) / scale;
 
-          const dux = referencePoints.x1 - referencePoints.x2;
-          const duy = referencePoints.y1 - referencePoints.y2;
-          unitLength =  Math.sqrt(sq(dux) + sq(duy));
+let needsRedraw = false;
 
-          referencePoint2Selected = true;
-          document.getElementById("unit").style.display = 'block';
-          document.getElementById("reset-button").style.display = 'block';
-          document.getElementById("instruction").innerText = "Specify length of the reference line";
-        } else {
-          if (mode === "length" && unitValueAvailable) {
-            if (!linePoint1Selected) {
-              linePoints.x1 = (e.offsetX - imgX) / scale;
-              linePoints.y1 = (e.offsetY - imgY) / scale;
-              linePoint1Selected = true;
-              linePoint2Selected = false;
-            } else if (!linePoint2Selected) {
-              linePoints.x2 = (e.offsetX - imgX) / scale;
-              linePoints.y2 = (e.offsetY - imgY) / scale;
-              linePoint2Selected = true;
-              linePoint1Selected = false;
-              calculateLength();
-            }
-          }
-          if (mode === "radius" && unitValueAvailable) {
-            if (!circlePoint1Selected) {
-              circlePoints.x1 = (e.offsetX - imgX) / scale;
-              circlePoints.y1 = (e.offsetY - imgY) / scale;
-              circlePoint1Selected = true;
-              circlePoint2Selected = false;
-              circlePoint3Selected = false;
-            } else if (!circlePoint2Selected) {
-              circlePoints.x2 = (e.offsetX - imgX) / scale;
-              circlePoints.y2 = (e.offsetY - imgY) / scale;
-              circlePoint2Selected = true;
-            } else if (!circlePoint3Selected) {
-              circlePoints.x3 = (e.offsetX - imgX) / scale;
-              circlePoints.y3 = (e.offsetY - imgY) / scale;
-              circlePoint3Selected = true;
-              calculateCircleCenterAndRadius();
-              circlePoint1Selected = false
-            }
-          }
-        }
-      }
-      if (mode === "angle") {
-        if (!anglePoint1Selected) {
-          anglePoints.x1 = (e.offsetX - imgX) / scale;
-          anglePoints.y1 = (e.offsetY - imgY) / scale;
-          anglePoint1Selected = true;
-          anglePoint2Selected = false;
-          anglePoint3Selected = false;
-        } else if (!anglePoint2Selected) {
-          anglePoints.x2 = (e.offsetX - imgX) / scale;
-          anglePoints.y2 = (e.offsetY - imgY) / scale;
-          anglePoint2Selected = true;
-        } else if (!anglePoint3Selected) {
-          anglePoints.x3 = (e.offsetX - imgX) / scale;
-          anglePoints.y3 = (e.offsetY - imgY) / scale;
-          anglePoint3Selected = true;
-          calculateAngle();
-          anglePoint1Selected = false;
-        }
-      }
-      draw();
-    }
-  });
+function scheduleDraw() {
+  needsRedraw = true;
+}
+
+// Main draw loop
+function drawLoop() {
+  if (needsRedraw) {
+    draw();
+    needsRedraw = false;
+  }
+  requestAnimationFrame(drawLoop);
+}
+drawLoop();
+
 
   // Draw everything
   function draw() {
@@ -698,7 +681,7 @@
   function redrawReferenceLine() {
     reset();
     document.getElementById("instruction").innerText = DRAW_REF_LINE_INST;
-    draw();
+    scheduleDraw();
   };
   function reset() {
     referencePoint1Selected = false;
