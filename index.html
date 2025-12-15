@@ -5,35 +5,59 @@
   <meta charset="UTF-8">
   <title>SCALE</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    /* Base */
 
     body {
       margin: 0;
-      padding: 24px;
-      font-family: "Inter", "Segoe UI", system-ui, sans-serif;
-      background: #f6f7f9;
+      padding: 20px;
+      font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      background: #f2f2f2;
       color: #222;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
 
-    /* Controls */
+    /* Header split */
+
+    .header {
+      width: 800px;
+      display: flex;
+      gap: 24px;
+      margin-bottom: 10px;
+    }
+
+    /* Columns */
+
+    .header-left,
+    .header-right {
+      flex: 1;
+    }
+
+    /* Stack elements vertically */
+
+    .left,
+    .right {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Inputs & buttons */
+
     input[type="file"],
     input[type="number"],
     button {
-      padding: 8px 12px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      background: #fff;
       font-size: 14px;
-      transition: all 0.2s ease;
+      padding: 6px 10px;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      background: #fff;
+      color: #222;
     }
 
     input[type="number"] {
-      width: 220px;
+      width: 100%;
     }
 
     button {
@@ -41,87 +65,86 @@
     }
 
     button:hover {
-      background: #f0f0f0;
+      background: #eaeaea;
     }
 
     /* Mode buttons */
+
     #modeButton-container {
       display: flex;
-      gap: 8px;
-      margin: 12px 0;
+      gap: 6px;
     }
 
     .modeButton {
       min-width: 80px;
-      font-weight: 500;
     }
 
-    .modeButton:focus {
-      outline: none;
-    }
+    /* Instruction */
 
-    /* Instructions */
     #instruction {
-      margin: 10px 0;
+      margin: 0;
       font-size: 14px;
       color: #555;
+      min-height: 18px; /* prevents layout jump */
     }
 
     /* Result */
+
     #result-container {
-      margin-top: 8px;
       font-size: 15px;
       font-weight: 500;
+      min-height: 20px;
     }
 
     #result-label {
-      color: #666;
-    }
-
-    #result-value {
-      color: #111;
+      color: #555;
     }
 
     /* Canvas */
+
     canvas {
-      margin-top: 16px;
-      border-radius: 10px;
-      border: 1px solid #d0d0d0;
+      margin-top: 12px;
+      border: 1px solid #888;
       background: #fff;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-      touch-action: none;
-    }
-
-    /* Reset button */
-    #reset-button {
-      margin-top: 6px;
-      background: #fff;
-    }
-
-    /* Subtle mobile improvement */
-    @media (max-width: 768px) {
-      canvas {
-        width: 100%;
-        height: auto;
-      }
+      cursor: crosshair;
     }
 
   </style>
 </head>
 
 <body>
-<input type="file" id="imgUpload" accept="image/*">
-<div id="modeButton-container" style="display: none">
-  <button class="modeButton" id="length" onclick="setLengthMode()">Length</button>
-  <button class="modeButton" id="radius" onclick="setRadiusMode()">Radius</button>
-  <button class="modeButton" id="angle" onclick="setAngleMode()">Angle</button>
+<div class="header">
+  <div class="header-left">
+    <div class="left">
+      <input type="file" id="imgUpload" accept="image/*">
+      <div id="modeButton-container" style="display: none">
+        <button class="modeButton" id="length" onclick="setLengthMode()">Length</button>
+        <button class="modeButton" id="radius" onclick="setRadiusMode()">Radius</button>
+        <button class="modeButton" id="angle" onclick="setAngleMode()">Angle</button>
+      </div>
+    </div>
+
+    <p id="result-container" style="display: none;">
+      <span id="result-label"></span>: <span id="result-value"></span>
+    </p>
+  </div>
+
+  <div class="header-right">
+    <div class="right">
+      <p id="instruction"></p>
+      <input type="number" id="unit"
+             placeholder="length of the reference line"
+             style="display: none"
+             onchange="recalculate()">
+      <button id="reset-button"
+              onclick="redrawReferenceLine()"
+              style="display: none">
+        Redraw Reference Line
+      </button>
+    </div>
+  </div>
 </div>
-<p id="instruction"></p>
-<input type="number" id="unit" placeholder="length of the reference line" style="display: none;"
-       onchange="recalculate()"
->
-<button id="reset-button" onclick="redrawReferenceLine()" style="display: none">Redraw Reference Line</button>
-<p id="result-container" style="display: none;"><span id="result-label"></span>: <span id="result-value"></span></p>
+
 <canvas id="canvas" width="800" height="600"></canvas>
 
 <script>
@@ -269,9 +292,11 @@
     const dx = (linePoints.x1 - linePoints.x2);
     const dy = (linePoints.y1 - linePoints.y2);
 
+    const length = document.getElementById("unit").value * Math.sqrt(dx * dx + dy * dy) / unitLength;
+
     document.getElementById("result-container").style.display = "block";
     document.getElementById("result-label").innerHTML = "Length";
-    document.getElementById("result-value").innerText = document.getElementById("unit").value * Math.sqrt(dx * dx + dy * dy) / unitLength;
+    document.getElementById("result-value").innerText = length.toFixed(4);
   }
 
   const calculateCircleCenterAndRadius = () => {
@@ -294,10 +319,11 @@
 
     // Radius
     circleRadius = Math.sqrt(sq(circleCenterPoint.x - circlePoints.x1) + sq(circleCenterPoint.y - circlePoints.y1));
+    const circleRadiusToDisplay = document.getElementById("unit").value * circleRadius / unitLength;
 
     document.getElementById("result-container").style.display = "block";
     document.getElementById("result-label").innerHTML = "Radius";
-    document.getElementById("result-value").innerText = document.getElementById("unit").value * circleRadius / unitLength;
+    document.getElementById("result-value").innerText = circleRadiusToDisplay.toFixed(4);
   }
 
   const calculateAngle = () => {
@@ -330,7 +356,7 @@
 
     document.getElementById("result-container").style.display = "block";
     document.getElementById("result-label").innerHTML = "Angle";
-    document.getElementById("result-value").innerText = angle;
+    document.getElementById("result-value").innerText = angle.toFixed(4);
   }
 
   // Add points
