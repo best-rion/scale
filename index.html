@@ -154,15 +154,23 @@
   <button id="point" class="touch-mode" onclick="setTouchModePoint()">Add Point</button>
 </div>
 
-<canvas id="canvas" width="800" height="600" style="touch-action: none"></canvas>
+<canvas id="canvas" width="800" height="1080" style="touch-action: none"></canvas>
 
 <script>
+  const canvas = document.getElementById('canvas');
+  const unitInputElement = document.getElementById('unit');
+  unitInputElement.value = null;
+  unitInputElement.addEventListener('input', () => {
+    unitValueUpdate();
+  })
+  const resetButtonElement = document.getElementById('reset-button');
+  const resultValueElement = document.getElementById('result-value');
+  const resultLabelElement = document.getElementById('result-label');
+  const resultContainerElement = document.getElementById('result-container');
 
-let touchMode = "zoom";
-  document.getElementById("unit").value = null;
+  let touchMode = "zoom";
   let unitValueAvailable = false;
   const DRAW_REF_LINE_INST= "Draw Reference Line";
-  const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
   let img = new Image();
   let imgLoaded = false;
@@ -251,7 +259,7 @@ let touchMode = "zoom";
   }
 
   function unitValueUpdate() {
-    const unitValue = document.getElementById("unit").value;
+    const unitValue = unitInputElement.value;
     if (isNaN(unitValue) || unitValue === "") {
       document.getElementById("instruction").innerText = "It is not a number";
       unitValueAvailable = false;
@@ -372,8 +380,8 @@ let touchMode = "zoom";
           unitLength =  Math.sqrt(sq(dux) + sq(duy));
 
           referencePoint2Selected = true;
-          document.getElementById("unit").style.display = 'block';
-          document.getElementById("reset-button").style.display = 'block';
+          unitInputElement.style.display = 'block';
+          resetButtonElement.style.display = 'block';
           document.getElementById("instruction").innerText = "Specify length of the reference line";
         } else {
           if (mode === "length" && unitValueAvailable) {
@@ -450,11 +458,11 @@ let touchMode = "zoom";
     const dx = (linePoints.x1 - linePoints.x2);
     const dy = (linePoints.y1 - linePoints.y2);
 
-    const length = document.getElementById("unit").value * Math.sqrt(dx * dx + dy * dy) / unitLength;
+    const length = unitInputElement.value * Math.sqrt(dx * dx + dy * dy) / unitLength;
 
-    document.getElementById("result-container").style.display = "block";
-    document.getElementById("result-label").innerHTML = "Length";
-    document.getElementById("result-value").innerText = length.toFixed(4);
+    resultContainerElement.style.display = "block";
+    resultLabelElement.innerHTML = "Length";
+    resultValueElement.innerText = length.toFixed(4);
   }
 
   const calculateCircleCenterAndRadius = () => {
@@ -477,11 +485,11 @@ let touchMode = "zoom";
 
     // Radius
     circleRadius = Math.sqrt(sq(circleCenterPoint.x - circlePoints.x1) + sq(circleCenterPoint.y - circlePoints.y1));
-    const circleRadiusToDisplay = document.getElementById("unit").value * circleRadius / unitLength;
+    const circleRadiusToDisplay = unitInputElement.value * circleRadius / unitLength;
 
-    document.getElementById("result-container").style.display = "block";
-    document.getElementById("result-label").innerHTML = "Radius";
-    document.getElementById("result-value").innerText = circleRadiusToDisplay.toFixed(4);
+    resultContainerElement.style.display = "block";
+    resultLabelElement.innerHTML = "Radius";
+    resultValueElement.innerText = circleRadiusToDisplay.toFixed(4);
   }
 
   const calculateAngle = () => {
@@ -512,11 +520,10 @@ let touchMode = "zoom";
         angle = 180 - angle; // More than 90 degree
     }
 
-    document.getElementById("result-container").style.display = "block";
-    document.getElementById("result-label").innerHTML = "Angle";
-    document.getElementById("result-value").innerText = angle.toFixed(4) + "°";
+    resultContainerElement.style.display = "block";
+    resultLabelElement.innerHTML = "Angle";
+    resultValueElement.innerText = angle.toFixed(4) + "°";
   }
-
 
 
 let needsRedraw = false;
@@ -689,10 +696,10 @@ drawLoop();
     resetLength();
     resetRadius();
     resetAngle();
-    document.getElementById("unit").style.display = 'none';
-    document.getElementById("reset-button").style.display = 'none';
-    document.getElementById("result-value").innerText = '';
-    document.getElementById("result-container").style.display = 'none';
+    unitInputElement.style.display = 'none';
+    resetButtonElement.style.display = 'none';
+    resultValueElement.innerText = '';
+    resultContainerElement.style.display = 'none';
   };
   function resetLength() {
     linePoint1Selected = false;
@@ -718,9 +725,6 @@ drawLoop();
     else
       return Math.atan( (y1-y2) / (x1-x2) );
   };
-  document.getElementById("unit").addEventListener('input', () => {
-    unitValueUpdate();
-  })
 </script>
 
 </body>
