@@ -323,6 +323,78 @@
   canvas.addEventListener('mouseup', e => dragging = false);
   canvas.addEventListener('mouseleave', e => dragging = false);
 
+  // ===== TOUCH SUPPORT =====
+  let ongoingTouches = [];
+  let lastTouchDistance = 0;
+  let touchDrag = false;
+
+  function getTouchPos(touch) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (touch.clientX - rect.left - imgX) / scale,
+      y: (touch.clientY - rect.top - imgY) / scale
+    };
+  }
+
+  function getDistance(touch1, touch2) {
+    const dx = touch2.clientX - touch1.clientX;
+    const dy = touch2.clientY - touch1.clientY;
+    return Math.sqrt(dx*dx + dy*dy);
+  }
+
+  // Single-finger drag (move image)
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (!imgLoaded) return;
+
+    if (e.touches.length === 1) {
+      touchDrag = true;
+      dragStart.x = e.touches[0].clientX - imgX;
+      dragStart.y = e.touches[0].clientY - imgY;
+    } else if (e.touches.length === 2) {
+      // Pinch start
+      lastTouchDistance = getDistance(e.touches[0], e.touches[1]);
+      touchDrag = false;
+    }
+  });
+
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (!imgLoaded) return;
+
+    if (e.touches.length === 1 && touchDrag && touchMode === "zoom") {
+      imgX = e.touches[0].clientX - dragStart.x;
+      imgY = e.touches[0].clientY - dragStart.y;
+      draw();
+    } else if (e.touches.length === 2 && touchMode === "zoom") {
+      const newDist = getDistance(e.touches[0], e.touches[1]);
+      const zoom = newDist / lastTouchDistance;
+      lastTouchDistance = newDist;
+
+      // Midpoint for zoom center
+      const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+      imgX = mx - (mx - imgX) * zoom;
+      imgY = my - (my - imgY) * zoom;
+      scale *= zoom;
+      draw();
+    }
+  });
+
+  canvas.addEventListener('touchend', e => {
+    e.preventDefault();
+    touchDrag = false;
+  });
+
+  // Optional: prevent page scrolling on touch
+  document.body.addEventListener('touchmove', function(e) {
+    if (e.target === canvas) {
+      e.preventDefault();
+    }
+  }, {passive:false});
+
+
   canvas.addEventListener('contextmenu', e => {
     e.preventDefault(); // prevent the browser context menu
   });
