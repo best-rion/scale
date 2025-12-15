@@ -127,7 +127,7 @@
         <button class="modeButton" id="radius" onclick="setRadiusMode()">Radius</button>
         <button class="modeButton" id="angle" onclick="setAngleMode()">Angle</button>
       </div>
-      <p id="result-container">
+      <p id="result-container" style="display: none;">
         <span id="result-label"></span>: <span id="result-value"></span>
       </p>
     </div>
@@ -280,7 +280,7 @@
       img.src = URL.createObjectURL(file);
       img.onload = () => {
         imgLoaded = true;
-        document.getElementById("modeButton-container").style.display = "block";
+        document.getElementById("modeButton-container").style.display = "flex";
         reset();
 
         imgX = canvas.width / 2 - img.width / 2;
