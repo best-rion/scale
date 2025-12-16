@@ -210,7 +210,7 @@
     document.getElementById("length").style.color = "red";
     document.getElementById("radius").style.color = "black";
     document.getElementById("angle").style.color = "black";
-    showUnitInstruction();
+    showDrawInstruction();
     resetRadius();
     resetAngle();
     scheduleDraw();
@@ -220,7 +220,7 @@
     document.getElementById("length").style.color = "black";
     document.getElementById("radius").style.color = "red";
     document.getElementById("angle").style.color = "black";
-    showUnitInstruction();
+    showDrawInstruction();
     resetLength();
     resetAngle();
     scheduleDraw();
@@ -230,7 +230,7 @@
     document.getElementById("length").style.color = "black";
     document.getElementById("radius").style.color = "black";
     document.getElementById("angle").style.color = "red";
-    instructionElement.innerText = referencePoint2Selected ? REF_INPUT_LABEL : "";
+    showDrawInstruction();
     resetLength();
     resetRadius();
     if (referencePoint1Selected && !referencePoint2Selected) {
@@ -238,9 +238,13 @@
     }
     scheduleDraw();
   }
-  const showUnitInstruction = () => {
+  const showDrawInstruction = () => {
     if (!referencePoint2Selected) {
-      instructionElement.innerText = DRAW_REF_LINE_INST;
+      if (mode === "length" || mode === "radius") {
+        instructionElement.innerText = DRAW_REF_LINE_INST;
+      } else {
+        instructionElement.innerText = "";
+      }
     }
   }
   const recalculate = () => {
