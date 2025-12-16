@@ -137,9 +137,9 @@
              placeholder="length of the reference line"
              style="display: none">
       <button id="reset-button"
-              onclick="redrawReferenceLine()"
+              onclick="reset()"
               style="display: none">
-        Redraw Reference Line
+        Reset
       </button>
     </div>
   </div>
@@ -148,15 +148,35 @@
 <canvas id="canvas" width="800" height="600"></canvas>
 
 <script>
-  document.getElementById("unit").value = null;
-  let unitValueAvailable = false;
-  const DRAW_REF_LINE_INST= "Draw Reference Line";
   const canvas = document.getElementById('canvas');
+  const unitInputElement = document.getElementById('unit');
+  unitInputElement.value = null;
+  unitInputElement.addEventListener('input', () => {
+    unitValueUpdate();
+  })
+  const resetButtonElement = document.getElementById('reset-button');
+  const resultValueElement = document.getElementById('result-value');
+  const resultLabelElement = document.getElementById('result-label');
+  const resultContainerElement = document.getElementById('result-container');
+  const instructionElement = document.getElementById('instruction');
+
+  const DRAW_REF_LINE_INST = "Draw Reference Line";
+  const REF_INPUT_LABEL = "Reference Line Length:";
+  const COLORS = {
+    ref: '#0f0',
+    measure: '#f00',
+    preview: '#0ff'
+  };
+
+
+  let mode; // length | radius | angle
+  let unitValueAvailable = false;
+  let mousePosition = { x: 0, y: 0 };
+  let needsRedraw = false;
+
   const ctx = canvas.getContext('2d');
   let img = new Image();
   let imgLoaded = false;
-
-  let mousePostion = { x: 0, y: 0 };
 
   // Image state
   let imgX = 0, imgY = 0;
@@ -189,47 +209,47 @@
   let anglePoint3Selected = false;
   let anglePoints = {x1: 0, y1: 0, x2: 0, y2: 0, x3: 0, y3: 0};
 
-  let mode;
   const setLengthMode = () => {
     mode = "length";
     document.getElementById("length").style.color = "red";
     document.getElementById("radius").style.color = "black";
     document.getElementById("angle").style.color = "black";
-    showUnitInstruction();
+    showDrawInstruction();
     resetRadius();
     resetAngle();
-    draw();
+    scheduleDraw();
   }
   const setRadiusMode = () => {
     mode = "radius";
     document.getElementById("length").style.color = "black";
     document.getElementById("radius").style.color = "red";
     document.getElementById("angle").style.color = "black";
-    showUnitInstruction();
+    showDrawInstruction();
     resetLength();
     resetAngle();
-    draw();
+    scheduleDraw();
   }
   const setAngleMode = () => {
     mode = "angle";
     document.getElementById("length").style.color = "black";
     document.getElementById("radius").style.color = "black";
     document.getElementById("angle").style.color = "red";
-    hideUnitInstruction();
+    showDrawInstruction();
     resetLength();
     resetRadius();
     if (referencePoint1Selected && !referencePoint2Selected) {
       referencePoint1Selected = false;
     }
-    draw();
+    scheduleDraw();
   }
-  const showUnitInstruction = () => {
+  const showDrawInstruction = () => {
     if (!referencePoint2Selected) {
-      document.getElementById("instruction").innerText = DRAW_REF_LINE_INST;
+      if (mode === "length" || mode === "radius") {
+        instructionElement.innerText = DRAW_REF_LINE_INST;
+      } else {
+        instructionElement.innerText = "";
+      }
     }
-  }
-  const hideUnitInstruction = () => {
-    document.getElementById("instruction").innerText = "";
   }
   const recalculate = () => {
     if (mode === "length" && linePoint2Selected) {
@@ -241,14 +261,12 @@
   }
 
   function unitValueUpdate() {
-    const unitValue = document.getElementById("unit").value;
-    if (isNaN(unitValue) || unitValue === "") {
-      document.getElementById("instruction").innerText = "It is not a number";
+    const unitValue = unitInputElement.value;
+    if (isNaN(unitValue) || unitValue === "" || unitValue <= 0) {
+      instructionElement.innerText = "Type a +ve number";
       unitValueAvailable = false;
-    } else if (unitValue <= 0) {
-      document.getElementById("instruction").innerText = "Provide a positive number";
     } else {
-      document.getElementById("instruction").innerText = "";
+      instructionElement.innerText = REF_INPUT_LABEL;
       unitValueAvailable = true;
       recalculate();
     }
@@ -261,12 +279,12 @@
       img.src = URL.createObjectURL(file);
       img.onload = () => {
         imgLoaded = true;
-        document.getElementById("modeButton-container").style.display = "block";
+        document.getElementById("modeButton-container").style.display = "flex";
         reset();
 
         imgX = canvas.width / 2 - img.width / 2;
         imgY = canvas.height / 2 - img.height / 2;
-        draw();
+        scheduleDraw();
       };
     }
   });
@@ -281,7 +299,7 @@
     imgX = mx - (mx - imgX) * zoom;
     imgY = my - (my - imgY) * zoom;
     scale *= zoom;
-    draw();
+    scheduleDraw();
   });
 
   // Drag image
@@ -295,13 +313,16 @@
     }
   });
   canvas.addEventListener('mousemove', e => {
-    if (dragging && imgLoaded) {
+    if (! imgLoaded) return;
+    if (dragging) {
       imgX = e.offsetX - dragStart.x;
       imgY = e.offsetY - dragStart.y;
     }
-    mousePostion.x = e.offsetX;
-    mousePostion.y = e.offsetY;
-    draw();
+    if (dragging || referencePoint1Selected || linePoint1Selected || anglePoint1Selected) {
+      mousePosition.x = e.offsetX;
+      mousePosition.y = e.offsetY;
+      scheduleDraw();
+    }
   });
   canvas.addEventListener('mouseup', e => dragging = false);
   canvas.addEventListener('mouseleave', e => dragging = false);
@@ -314,11 +335,11 @@
     const dx = (linePoints.x1 - linePoints.x2);
     const dy = (linePoints.y1 - linePoints.y2);
 
-    const length = document.getElementById("unit").value * Math.sqrt(dx * dx + dy * dy) / unitLength;
+    const length = unitInputElement.value * Math.sqrt(dx * dx + dy * dy) / unitLength;
 
-    document.getElementById("result-container").style.display = "block";
-    document.getElementById("result-label").innerHTML = "Length";
-    document.getElementById("result-value").innerText = length.toFixed(4);
+    resultContainerElement.style.display = "block";
+    resultLabelElement.innerHTML = "Length";
+    resultValueElement.innerText = length.toFixed(4);
   }
 
   const calculateCircleCenterAndRadius = () => {
@@ -341,44 +362,38 @@
 
     // Radius
     circleRadius = Math.sqrt(sq(circleCenterPoint.x - circlePoints.x1) + sq(circleCenterPoint.y - circlePoints.y1));
-    const circleRadiusToDisplay = document.getElementById("unit").value * circleRadius / unitLength;
+    const circleRadiusToDisplay = unitInputElement.value * circleRadius / unitLength;
 
-    document.getElementById("result-container").style.display = "block";
-    document.getElementById("result-label").innerHTML = "Radius";
-    document.getElementById("result-value").innerText = circleRadiusToDisplay.toFixed(4);
+    resultContainerElement.style.display = "block";
+    resultLabelElement.innerHTML = "Radius";
+    resultValueElement.innerText = circleRadiusToDisplay.toFixed(4);
   }
 
-  const calculateAngle = () => {
-    let slopeAngle01 = slopeAngle(anglePoints.x1,anglePoints.y1,anglePoints.x2,anglePoints.y2);
-    let slopeAngle12 = slopeAngle(anglePoints.x2,anglePoints.y2, anglePoints.x3,anglePoints.y3);
+  function calculateAngle() {
+    const v1x = anglePoints.x1 - anglePoints.x2;
+    const v1y = anglePoints.y1 - anglePoints.y2;
+    const v2x = anglePoints.x3 - anglePoints.x2;
+    const v2y = anglePoints.y3 - anglePoints.y2;
 
-    angle = Math.abs(slopeAngle12 - slopeAngle01);
+    const mag1 = Math.hypot(v1x, v1y);
+    const mag2 = Math.hypot(v2x, v2y);
 
-    angle = angle * 180 / 3.14159;
-
-    if ( // c^2 < a^2 + b^2 [acute angle] (pythagoras)
-
-      sq( distance(anglePoints.x1, anglePoints.y1, anglePoints.x3, anglePoints.y3) )
-      <
-      sq( distance(anglePoints.x1, anglePoints.y1, anglePoints.x2, anglePoints.y2) )
-      +
-      sq( distance(anglePoints.x2, anglePoints.y2, anglePoints.x3, anglePoints.y3) )
-    )
-    { // Then it is an Acute angle
-
-      if (angle > 90)
-        angle = 180 - angle; // Less than 90 degree
-    }
-    else
-    { // Else it is an Obtuse angle
-
-      if (angle < 90)
-        angle = 180 - angle; // More than 90 degree
+    // Edge case: overlapping points
+    if (mag1 === 0 || mag2 === 0) {
+      resultValueElement.innerText = "Invalid angle";
+      return;
     }
 
-    document.getElementById("result-container").style.display = "block";
-    document.getElementById("result-label").innerHTML = "Angle";
-    document.getElementById("result-value").innerText = angle.toFixed(4) + "°";
+    let cos = (v1x*v2x + v1y*v2y) / (mag1 * mag2);
+
+    // Clamp to avoid NaN from floating error
+    cos = Math.min(1, Math.max(-1, cos));
+
+    const angle = Math.acos(cos) * 180 / Math.PI;
+
+    resultContainerElement.style.display = "block";
+    resultLabelElement.innerHTML = "Angle";
+    resultValueElement.innerText = angle.toFixed(4) + "°";
   }
 
   // Add points
@@ -388,33 +403,37 @@
     if (dragging) return;
 
     if (e.button === 0) {
+      let ix = (e.offsetX - imgX) / scale;
+      let iy = (e.offsetY - imgY) / scale;
       if (mode === "length" || mode === "radius") {
         if (!referencePoint1Selected) {
-          referencePoints.x1 = (e.offsetX - imgX) / scale;
-          referencePoints.y1 = (e.offsetY - imgY) / scale;
+          referencePoints.x1 = ix;
+          referencePoints.y1 = iy;
           referencePoint1Selected = true;
         } else if (!referencePoint2Selected) {
-          referencePoints.x2 = (e.offsetX - imgX) / scale;
-          referencePoints.y2 = (e.offsetY - imgY) / scale;
+          referencePoints.x2 = ix;
+          referencePoints.y2 = iy;
 
           const dux = referencePoints.x1 - referencePoints.x2;
           const duy = referencePoints.y1 - referencePoints.y2;
           unitLength =  Math.sqrt(sq(dux) + sq(duy));
 
           referencePoint2Selected = true;
-          document.getElementById("unit").style.display = 'block';
-          document.getElementById("reset-button").style.display = 'block';
-          document.getElementById("instruction").innerText = "Specify length of the reference line";
+          unitInputElement.style.display = 'block';
+          unitInputElement.value = 1;
+          unitValueAvailable = true;
+          resetButtonElement.style.display = 'block';
+          instructionElement.innerText = REF_INPUT_LABEL;
         } else {
           if (mode === "length" && unitValueAvailable) {
             if (!linePoint1Selected) {
-              linePoints.x1 = (e.offsetX - imgX) / scale;
-              linePoints.y1 = (e.offsetY - imgY) / scale;
+              linePoints.x1 = ix;
+              linePoints.y1 = iy;
               linePoint1Selected = true;
               linePoint2Selected = false;
             } else if (!linePoint2Selected) {
-              linePoints.x2 = (e.offsetX - imgX) / scale;
-              linePoints.y2 = (e.offsetY - imgY) / scale;
+              linePoints.x2 = ix;
+              linePoints.y2 = iy;
               linePoint2Selected = true;
               linePoint1Selected = false;
               calculateLength();
@@ -422,18 +441,18 @@
           }
           if (mode === "radius" && unitValueAvailable) {
             if (!circlePoint1Selected) {
-              circlePoints.x1 = (e.offsetX - imgX) / scale;
-              circlePoints.y1 = (e.offsetY - imgY) / scale;
+              circlePoints.x1 = ix;
+              circlePoints.y1 = iy;
               circlePoint1Selected = true;
               circlePoint2Selected = false;
               circlePoint3Selected = false;
             } else if (!circlePoint2Selected) {
-              circlePoints.x2 = (e.offsetX - imgX) / scale;
-              circlePoints.y2 = (e.offsetY - imgY) / scale;
+              circlePoints.x2 = ix;
+              circlePoints.y2 = iy;
               circlePoint2Selected = true;
             } else if (!circlePoint3Selected) {
-              circlePoints.x3 = (e.offsetX - imgX) / scale;
-              circlePoints.y3 = (e.offsetY - imgY) / scale;
+              circlePoints.x3 = ix;
+              circlePoints.y3 = iy;
               circlePoint3Selected = true;
               calculateCircleCenterAndRadius();
               circlePoint1Selected = false
@@ -460,9 +479,23 @@
           anglePoint1Selected = false;
         }
       }
-      draw();
+      scheduleDraw();
     }
   });
+
+  function scheduleDraw() {
+    needsRedraw = true;
+  }
+
+  // Main draw loop
+  function drawLoop() {
+    if (needsRedraw) {
+      draw();
+      needsRedraw = false;
+    }
+    requestAnimationFrame(drawLoop);
+  }
+  drawLoop();
 
   // Draw everything
   function draw() {
@@ -471,26 +504,26 @@
     ctx.drawImage(img, imgX, imgY, img.width * scale, img.height * scale);
 
     if (referencePoint1Selected) {
-      ctx.fillStyle = '#0f0';
+      ctx.fillStyle = COLORS.ref;
       ctx.beginPath();
       ctx.arc(imgX + referencePoints.x1 * scale, imgY + referencePoints.y1 * scale, 5, 0, Math.PI * 2);
       ctx.fill();
 
       if (!referencePoint2Selected) {
-        ctx.strokeStyle= '#ff0';
+        ctx.strokeStyle= COLORS.preview;
         ctx.beginPath();
         ctx.moveTo(imgX + referencePoints.x1 * scale, imgY + referencePoints.y1 * scale);
-        ctx.lineTo(mousePostion.x, mousePostion.y);
+        ctx.lineTo(mousePosition.x, mousePosition.y);
         ctx.stroke();
       }
     }
     if (referencePoint2Selected) {
-      ctx.fillStyle = '#0f0';
+      ctx.fillStyle = COLORS.ref;
       ctx.beginPath();
       ctx.arc(imgX + referencePoints.x2 * scale, imgY + referencePoints.y2 * scale, 5, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.strokeStyle = '#ff0';
+      ctx.strokeStyle = COLORS.preview;
       ctx.beginPath();
       ctx.moveTo(imgX + referencePoints.x1 * scale, imgY + referencePoints.y1 * scale);
       ctx.lineTo(imgX + referencePoints.x2 * scale, imgY + referencePoints.y2 * scale);
@@ -499,27 +532,27 @@
 
     if (mode === "length") {
       if (linePoint1Selected || linePoint2Selected) {
-        ctx.fillStyle = 'red';
+        ctx.fillStyle = COLORS.measure;
         ctx.beginPath();
         ctx.arc(imgX + linePoints.x1 * scale, imgY + linePoints.y1 * scale, 5, 0, Math.PI * 2);
         ctx.fill();
 
         if (!linePoint2Selected) {
-          ctx.strokeStyle= '#ff0';
+          ctx.strokeStyle= COLORS.preview;
           ctx.beginPath();
           ctx.moveTo(imgX + linePoints.x1 * scale, imgY + linePoints.y1 * scale);
-          ctx.lineTo(mousePostion.x, mousePostion.y);
+          ctx.lineTo(mousePosition.x, mousePosition.y);
           ctx.stroke();
         }
       }
 
       if (linePoint2Selected) {
-        ctx.fillStyle = 'red';
+        ctx.fillStyle = COLORS.measure;
         ctx.beginPath();
         ctx.arc(imgX + linePoints.x2 * scale, imgY + linePoints.y2 * scale, 5, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = '#ff0';
+        ctx.strokeStyle = COLORS.preview;
         ctx.beginPath();
         ctx.moveTo(imgX + linePoints.x1 * scale, imgY + linePoints.y1 * scale);
         ctx.lineTo(imgX + linePoints.x2 * scale, imgY + linePoints.y2 * scale);
@@ -527,7 +560,7 @@
       }
     }
     if (mode === "radius") {
-      ctx.fillStyle = 'red';
+      ctx.fillStyle = COLORS.measure;
       if (circlePoint1Selected || circlePoint3Selected) {
         ctx.beginPath();
         ctx.arc(imgX + circlePoints.x1 * scale, imgY + circlePoints.y1 * scale, 5, 0, Math.PI * 2);
@@ -552,27 +585,27 @@
     }
     if (mode === "angle") {
       if (anglePoint1Selected || anglePoint3Selected) {
-        ctx.fillStyle = 'red';
+        ctx.fillStyle = COLORS.measure;
         ctx.beginPath();
         ctx.arc(imgX + anglePoints.x1 * scale, imgY + anglePoints.y1 * scale, 5, 0, Math.PI * 2);
         ctx.fill();
 
         if (!anglePoint2Selected) {
-          ctx.strokeStyle= '#ff0';
+          ctx.strokeStyle= COLORS.preview;
           ctx.beginPath();
           ctx.moveTo(imgX + anglePoints.x1 * scale, imgY + anglePoints.y1 * scale);
-          ctx.lineTo(mousePostion.x, mousePostion.y);
+          ctx.lineTo(mousePosition.x, mousePosition.y);
           ctx.stroke();
         }
       }
 
       if (anglePoint2Selected) {
-        ctx.fillStyle = 'red';
+        ctx.fillStyle = COLORS.measure;
         ctx.beginPath();
         ctx.arc(imgX + anglePoints.x2 * scale, imgY + anglePoints.y2 * scale, 5, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = '#ff0';
+        ctx.strokeStyle = COLORS.preview;
         ctx.beginPath();
         ctx.moveTo(imgX + anglePoints.x1 * scale, imgY + anglePoints.y1 * scale);
         ctx.lineTo(imgX + anglePoints.x2 * scale, imgY + anglePoints.y2 * scale);
@@ -581,18 +614,18 @@
         if (!anglePoint3Selected) {
           ctx.beginPath();
           ctx.moveTo(imgX + anglePoints.x2 * scale, imgY + anglePoints.y2 * scale);
-          ctx.lineTo(mousePostion.x, mousePostion.y);
+          ctx.lineTo(mousePosition.x, mousePosition.y);
           ctx.stroke();
         }
       }
 
       if (anglePoint3Selected) {
-        ctx.fillStyle = 'red';
+        ctx.fillStyle = COLORS.measure;
         ctx.beginPath();
         ctx.arc(imgX + anglePoints.x3 * scale, imgY + anglePoints.y3 * scale, 5, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = '#ff0';
+        ctx.strokeStyle = COLORS.preview;
         ctx.beginPath();
         ctx.moveTo(imgX + anglePoints.x1 * scale, imgY + anglePoints.y1 * scale);
         ctx.lineTo(imgX + anglePoints.x2 * scale, imgY + anglePoints.y2 * scale);
@@ -606,21 +639,19 @@
     }
   }
 
-  function redrawReferenceLine() {
-    reset();
-    document.getElementById("instruction").innerText = DRAW_REF_LINE_INST;
-    draw();
-  };
   function reset() {
     referencePoint1Selected = false;
     referencePoint2Selected = false;
     resetLength();
     resetRadius();
     resetAngle();
-    document.getElementById("unit").style.display = 'none';
-    document.getElementById("reset-button").style.display = 'none';
-    document.getElementById("result-value").innerText = '';
-    document.getElementById("result-container").style.display = 'none';
+    unitInputElement.value = '';
+    unitInputElement.style.display = 'none';
+    resetButtonElement.style.display = 'none';
+    resultValueElement.innerText = '';
+    resultContainerElement.style.display = 'none';
+    instructionElement.innerText = (mode === "length" || mode === "radius") ? DRAW_REF_LINE_INST : "";
+    scheduleDraw();
   };
   function resetLength() {
     linePoint1Selected = false;
@@ -636,7 +667,7 @@
     anglePoint2Selected = false;
     anglePoint3Selected = false;
   };
-  const sq = (n) => {return Math.pow(n,2)};
+  const sq = n => n*n;
   const distance = (x1, y1, x2, y2) => {
     return Math.sqrt(sq(x1-x2) + sq(y1-y2));
   };
@@ -646,9 +677,6 @@
     else
       return Math.atan( (y1-y2) / (x1-x2) );
   };
-  document.getElementById("unit").addEventListener('input', () => {
-    unitValueUpdate();
-  })
 </script>
 
 </body>
