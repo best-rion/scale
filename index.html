@@ -169,6 +169,8 @@
     measure: '#f00',
     preview: '#0ff',
   }
+  const POINT_RADIUS = 10;
+  const STROKE_THICKNESS = 4;
 
   let mode; // length | radius | angle
   let touchMode = "move"; // move | draw
@@ -540,11 +542,12 @@
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (!imgLoaded) return;
     ctx.drawImage(img, imgX, imgY, img.width * scale, img.height * scale);
+    ctx.lineWidth = STROKE_THICKNESS;
 
     if (referencePoint1Selected) {
       ctx.fillStyle = COLORS.ref;
       ctx.beginPath();
-      ctx.arc(imgX + referencePoints.x1 * scale, imgY + referencePoints.y1 * scale, 5, 0, Math.PI * 2);
+      ctx.arc(imgX + referencePoints.x1 * scale, imgY + referencePoints.y1 * scale, POINT_RADIUS, 0, Math.PI * 2);
       ctx.fill();
 
       if (!referencePoint2Selected) {
@@ -558,7 +561,7 @@
     if (referencePoint2Selected) {
       ctx.fillStyle = COLORS.ref;
       ctx.beginPath();
-      ctx.arc(imgX + referencePoints.x2 * scale, imgY + referencePoints.y2 * scale, 5, 0, Math.PI * 2);
+      ctx.arc(imgX + referencePoints.x2 * scale, imgY + referencePoints.y2 * scale, POINT_RADIUS, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.strokeStyle = COLORS.preview;
@@ -572,7 +575,7 @@
       if (linePoint1Selected || linePoint2Selected) {
         ctx.fillStyle = COLORS.measure;
         ctx.beginPath();
-        ctx.arc(imgX + linePoints.x1 * scale, imgY + linePoints.y1 * scale, 5, 0, Math.PI * 2);
+        ctx.arc(imgX + linePoints.x1 * scale, imgY + linePoints.y1 * scale,  POINT_RADIUS, 0, Math.PI * 2);
         ctx.fill();
 
         if (!linePoint2Selected) {
@@ -587,7 +590,7 @@
       if (linePoint2Selected) {
         ctx.fillStyle = COLORS.measure;
         ctx.beginPath();
-        ctx.arc(imgX + linePoints.x2 * scale, imgY + linePoints.y2 * scale, 5, 0, Math.PI * 2);
+        ctx.arc(imgX + linePoints.x2 * scale, imgY + linePoints.y2 * scale,  POINT_RADIUS, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.strokeStyle = COLORS.preview;
@@ -601,21 +604,21 @@
       ctx.fillStyle = COLORS.measure;
       if (circlePoint1Selected || circlePoint3Selected) {
         ctx.beginPath();
-        ctx.arc(imgX + circlePoints.x1 * scale, imgY + circlePoints.y1 * scale, 5, 0, Math.PI * 2);
+        ctx.arc(imgX + circlePoints.x1 * scale, imgY + circlePoints.y1 * scale,  POINT_RADIUS, 0, Math.PI * 2);
         ctx.fill();
       }
       if (circlePoint2Selected) {
         ctx.beginPath();
-        ctx.arc(imgX + circlePoints.x2 * scale, imgY + circlePoints.y2 * scale, 5, 0, Math.PI * 2);
+        ctx.arc(imgX + circlePoints.x2 * scale, imgY + circlePoints.y2 * scale,  POINT_RADIUS, 0, Math.PI * 2);
         ctx.fill();
       }
       if (circlePoint3Selected) {
         ctx.beginPath();
-        ctx.arc(imgX + circlePoints.x3 * scale, imgY + circlePoints.y3 * scale, 5, 0, Math.PI * 2);
+        ctx.arc(imgX + circlePoints.x3 * scale, imgY + circlePoints.y3 * scale,  POINT_RADIUS, 0, Math.PI * 2);
         ctx.fill();
 
         //
-        ctx.fillStyle = "#ff0";
+        ctx.fillStyle = COLORS.preview;
         ctx.beginPath();
         ctx.arc(imgX + circleCenterPoint.x * scale, imgY + circleCenterPoint.y * scale, circleRadius * scale, 0, Math.PI * 2);
         ctx.stroke();
@@ -625,7 +628,7 @@
       if (anglePoint1Selected || anglePoint3Selected) {
         ctx.fillStyle = COLORS.measure;
         ctx.beginPath();
-        ctx.arc(imgX + anglePoints.x1 * scale, imgY + anglePoints.y1 * scale, 5, 0, Math.PI * 2);
+        ctx.arc(imgX + anglePoints.x1 * scale, imgY + anglePoints.y1 * scale,  POINT_RADIUS, 0, Math.PI * 2);
         ctx.fill();
 
         if (!anglePoint2Selected) {
@@ -640,7 +643,7 @@
       if (anglePoint2Selected) {
         ctx.fillStyle = COLORS.measure;
         ctx.beginPath();
-        ctx.arc(imgX + anglePoints.x2 * scale, imgY + anglePoints.y2 * scale, 5, 0, Math.PI * 2);
+        ctx.arc(imgX + anglePoints.x2 * scale, imgY + anglePoints.y2 * scale,  POINT_RADIUS, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.strokeStyle = COLORS.preview;
@@ -660,7 +663,7 @@
       if (anglePoint3Selected) {
         ctx.fillStyle = COLORS.measure;
         ctx.beginPath();
-        ctx.arc(imgX + anglePoints.x3 * scale, imgY + anglePoints.y3 * scale, 5, 0, Math.PI * 2);
+        ctx.arc(imgX + anglePoints.x3 * scale, imgY + anglePoints.y3 * scale,  POINT_RADIUS, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.strokeStyle = COLORS.preview;
@@ -706,15 +709,6 @@
     anglePoint3Selected = false;
   };
   const sq = n => n*n;
-  const distance = (x1, y1, x2, y2) => {
-    return Math.sqrt(sq(x1-x2) + sq(y1-y2));
-  };
-  const slopeAngle = (x1, y1, x2, y2) => {
-    if (x1 - x2 === 0)
-      return Math.PI/2;
-    else
-      return Math.atan( (y1-y2) / (x1-x2) );
-  };
 </script>
 
 </body>
