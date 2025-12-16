@@ -164,6 +164,11 @@
 
   const DRAW_REF_LINE_INST = "Draw Reference Line";
   const REF_INPUT_LABEL = "Reference Line Length:";
+  const COLORS = {
+    ref: '#0f0',
+    measure: '#f00',
+    preview: '#0ff',
+  }
 
   let mode; // length | radius | angle
   let touchMode = "move"; // move | draw
@@ -330,10 +335,13 @@
         imgX = e.touches[0].clientX - dragStart.x;
         imgY = e.touches[0].clientY - dragStart.y;
       }
-      const rect = canvas.getBoundingClientRect();
-      mousePosition.x = e.touches[0].clientX - rect.left;
-      mousePosition.y = e.touches[0].clientY - rect.top;
-      scheduleDraw();
+      if (touchDrag || referencePoint1Selected || linePoint1Selected || anglePoint1Selected)
+      {
+        const rect = canvas.getBoundingClientRect();
+        mousePosition.x = e.touches[0].clientX - rect.left;
+        mousePosition.y = e.touches[0].clientY - rect.top;
+        scheduleDraw();
+      }
     } else if (e.touches.length === 2 && touchMode === "move") {
       const newDist = getDistance(e.touches[0], e.touches[1]);
       const zoom = newDist / lastTouchDistance;
@@ -534,13 +542,13 @@
     ctx.drawImage(img, imgX, imgY, img.width * scale, img.height * scale);
 
     if (referencePoint1Selected) {
-      ctx.fillStyle = '#0f0';
+      ctx.fillStyle = COLORS.ref;
       ctx.beginPath();
       ctx.arc(imgX + referencePoints.x1 * scale, imgY + referencePoints.y1 * scale, 5, 0, Math.PI * 2);
       ctx.fill();
 
       if (!referencePoint2Selected) {
-        ctx.strokeStyle= '#ff0';
+        ctx.strokeStyle= COLORS.preview;
         ctx.beginPath();
         ctx.moveTo(imgX + referencePoints.x1 * scale, imgY + referencePoints.y1 * scale);
         ctx.lineTo(mousePosition.x, mousePosition.y);
@@ -548,12 +556,12 @@
       }
     }
     if (referencePoint2Selected) {
-      ctx.fillStyle = '#0f0';
+      ctx.fillStyle = COLORS.ref;
       ctx.beginPath();
       ctx.arc(imgX + referencePoints.x2 * scale, imgY + referencePoints.y2 * scale, 5, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.strokeStyle = '#ff0';
+      ctx.strokeStyle = COLORS.preview;
       ctx.beginPath();
       ctx.moveTo(imgX + referencePoints.x1 * scale, imgY + referencePoints.y1 * scale);
       ctx.lineTo(imgX + referencePoints.x2 * scale, imgY + referencePoints.y2 * scale);
@@ -562,13 +570,13 @@
 
     if (mode === "length") {
       if (linePoint1Selected || linePoint2Selected) {
-        ctx.fillStyle = 'red';
+        ctx.fillStyle = COLORS.measure;
         ctx.beginPath();
         ctx.arc(imgX + linePoints.x1 * scale, imgY + linePoints.y1 * scale, 5, 0, Math.PI * 2);
         ctx.fill();
 
         if (!linePoint2Selected) {
-          ctx.strokeStyle= '#ff0';
+          ctx.strokeStyle= COLORS.preview;
           ctx.beginPath();
           ctx.moveTo(imgX + linePoints.x1 * scale, imgY + linePoints.y1 * scale);
           ctx.lineTo(mousePosition.x, mousePosition.y);
@@ -577,12 +585,12 @@
       }
 
       if (linePoint2Selected) {
-        ctx.fillStyle = 'red';
+        ctx.fillStyle = COLORS.measure;
         ctx.beginPath();
         ctx.arc(imgX + linePoints.x2 * scale, imgY + linePoints.y2 * scale, 5, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = '#ff0';
+        ctx.strokeStyle = COLORS.preview;
         ctx.beginPath();
         ctx.moveTo(imgX + linePoints.x1 * scale, imgY + linePoints.y1 * scale);
         ctx.lineTo(imgX + linePoints.x2 * scale, imgY + linePoints.y2 * scale);
@@ -590,7 +598,7 @@
       }
     }
     if (mode === "radius") {
-      ctx.fillStyle = 'red';
+      ctx.fillStyle = COLORS.measure;
       if (circlePoint1Selected || circlePoint3Selected) {
         ctx.beginPath();
         ctx.arc(imgX + circlePoints.x1 * scale, imgY + circlePoints.y1 * scale, 5, 0, Math.PI * 2);
@@ -615,13 +623,13 @@
     }
     if (mode === "angle") {
       if (anglePoint1Selected || anglePoint3Selected) {
-        ctx.fillStyle = 'red';
+        ctx.fillStyle = COLORS.measure;
         ctx.beginPath();
         ctx.arc(imgX + anglePoints.x1 * scale, imgY + anglePoints.y1 * scale, 5, 0, Math.PI * 2);
         ctx.fill();
 
         if (!anglePoint2Selected) {
-          ctx.strokeStyle= '#ff0';
+          ctx.strokeStyle= COLORS.preview;
           ctx.beginPath();
           ctx.moveTo(imgX + anglePoints.x1 * scale, imgY + anglePoints.y1 * scale);
           ctx.lineTo(mousePosition.x, mousePosition.y);
@@ -630,12 +638,12 @@
       }
 
       if (anglePoint2Selected) {
-        ctx.fillStyle = 'red';
+        ctx.fillStyle = COLORS.measure;
         ctx.beginPath();
         ctx.arc(imgX + anglePoints.x2 * scale, imgY + anglePoints.y2 * scale, 5, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = '#ff0';
+        ctx.strokeStyle = COLORS.preview;
         ctx.beginPath();
         ctx.moveTo(imgX + anglePoints.x1 * scale, imgY + anglePoints.y1 * scale);
         ctx.lineTo(imgX + anglePoints.x2 * scale, imgY + anglePoints.y2 * scale);
@@ -650,12 +658,12 @@
       }
 
       if (anglePoint3Selected) {
-        ctx.fillStyle = 'red';
+        ctx.fillStyle = COLORS.measure;
         ctx.beginPath();
         ctx.arc(imgX + anglePoints.x3 * scale, imgY + anglePoints.y3 * scale, 5, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = '#ff0';
+        ctx.strokeStyle = COLORS.preview;
         ctx.beginPath();
         ctx.moveTo(imgX + anglePoints.x1 * scale, imgY + anglePoints.y1 * scale);
         ctx.lineTo(imgX + anglePoints.x2 * scale, imgY + anglePoints.y2 * scale);
