@@ -486,37 +486,32 @@
   }
 
   const calculateAngle = () => {
-    let slopeAngle01 = slopeAngle(anglePoints.x1,anglePoints.y1,anglePoints.x2,anglePoints.y2);
-    let slopeAngle12 = slopeAngle(anglePoints.x2,anglePoints.y2, anglePoints.x3,anglePoints.y3);
+    const v1x = anglePoints.x1 - anglePoints.x2;
+    const v1y = anglePoints.y1 - anglePoints.y2;
+    const v2x = anglePoints.x3 - anglePoints.x2;
+    const v2y = anglePoints.y3 - anglePoints.y2;
 
-    angle = Math.abs(slopeAngle12 - slopeAngle01);
+    const mag1 = Math.hypot(v1x, v1y);
+    const mag2 = Math.hypot(v2x, v2y);
 
-    angle = angle * 180 / 3.14159;
-
-    if ( // c^2 < a^2 + b^2 [acute angle] (pythagoras)
-
-      sq( distance(anglePoints.x1, anglePoints.y1, anglePoints.x3, anglePoints.y3) )
-      <
-      sq( distance(anglePoints.x1, anglePoints.y1, anglePoints.x2, anglePoints.y2) )
-      +
-      sq( distance(anglePoints.x2, anglePoints.y2, anglePoints.x3, anglePoints.y3) )
-    )
-    { // Then it is an Acute angle
-
-      if (angle > 90)
-        angle = 180 - angle; // Less than 90 degree
+    // Edge case: overlapping points
+    if (mag1 === 0 || mag2 === 0) {
+      resultValueElement.innerText = "Invalid angle";
+      return;
     }
-    else
-    { // Else it is an Obtuse angle
 
-      if (angle < 90)
-        angle = 180 - angle; // More than 90 degree
-    }
+    let cos = (v1x*v2x + v1y*v2y) / (mag1 * mag2);
+
+    // Clamp to avoid NaN from floating error
+    cos = Math.min(1, Math.max(-1, cos));
+
+    const angle = Math.acos(cos) * 180 / Math.PI;
 
     resultContainerElement.style.display = "block";
     resultLabelElement.innerHTML = "Angle";
     resultValueElement.innerText = angle.toFixed(4) + "°";
   }
+
 
   function scheduleDraw() {
     needsRedraw = true;
